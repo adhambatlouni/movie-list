@@ -1,4 +1,3 @@
-/** @jest-environment jsdom */
 import { afterEach, beforeEach, expect, it, jest } from "@jest/globals";
 import "@testing-library/jest-dom/jest-globals";
 import {
