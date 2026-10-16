@@ -1,36 +1,332 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+﻿# Movie Watchlist
 
-## Getting Started
+A focused movie watchlist built with Next.js App Router, React, TypeScript, and
+Supabase. Add a title and optional notes, see the newest movies first, mark films
+watched or unwatched, and delete them with confirmation. Changes persist in
+PostgreSQL across page refreshes.
 
-First, run the development server:
+V1 deliberately excludes title editing, genre metadata, and authentication. This is a
+local development application; public deployment requires the access controls
+outlined under [Security](#security).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Stack
+
+- Next.js App Router, React, and TypeScript
+- Tailwind CSS and shadcn/ui primitives, with Radix for accessible labels/dialogs
+- TanStack Query for requests, caching, and optimistic updates
+- React Hook Form and shared Zod schemas for validation
+- Supabase PostgreSQL, accessed only from the Next.js server
+- Jest, React Testing Library, Playwright, and axe for verification
+
+## Local setup
+
+Use **Node.js 22 or newer** and npm. Run commands inside `movie-watchlist`, the
+folder containing `package.json`:
+
+```sh
+cd movie-watchlist
+npm ci
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 1. Configure Supabase
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Create a development project in the [Supabase dashboard](https://supabase.com/dashboard).
+2. Open the project's SQL Editor and run the full contents of
+   [`supabase/migrations/20261015000100_create_movies.sql`](supabase/migrations/20261015000100_create_movies.sql)
+   **once**. Confirm `public.movies` exists. If a table already exists, compare
+   schemas first; do not drop existing data or rerun the creation blindly.
+3. Copy the Project URL from **Connect**, and a secret key starting with
+   `sb_secret_` from **Settings > API Keys**. Use values from the same project.
+4. Copy `.env.example` to `.env.local` beside `package.json`. In PowerShell:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   ```powershell
+   Copy-Item .env.example .env.local
+   ```
 
-## Learn More
+   If `.env.local` already exists, edit it instead of overwriting it. Set:
 
-To learn more about Next.js, take a look at the following resources:
+   ```dotenv
+   SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+   SUPABASE_SECRET_KEY=YOUR_SECRET_KEY
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   Neither variable needs a `NEXT_PUBLIC_` prefix. A publishable key and database
+   password are not needed for this server-only Data API connection. Keep real
+   credentials out of source control; `.env.local` is ignored.
+5. Keep Supabase's Data API enabled with the `public` schema exposed.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Applying SQL in the editor does not register a Supabase CLI migration-history
+entry. Reconcile that history before adopting `supabase db push` later.
 
-## Deploy on Vercel
+### 2. Verify the database and start the app
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```sh
+npm run db:check
+npm run dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The dev and start scripts bind
+to localhost. Restart the server after changing environment variables.
+
+The database check creates a uniquely named temporary movie, verifies generated
+values and persisted CRUD operations, and removes its test data. To verify the
+REST endpoints, leave the server running and use a second terminal:
+
+```sh
+npm run api:check
+# For a different local port:
+npm run api:check -- 3109
+```
+
+This verifies ordering, normalization, watched/unwatched persistence, deletion,
+validation, and error statuses. Cleanup targets only this run's temporary movies.
+If a network failure prevents cleanup, the script prints the exact title prefix
+to remove. For a manual UI check, add a movie, refresh, toggle watched, refresh,
+then delete and refresh again.
+
+### Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| `package.json` not found | Run npm from `movie-watchlist`, not its parent directory. |
+| Missing configuration | Put both values in `.env.local` beside `package.json`, then restart. |
+| HTTP 401 / invalid key | Use an `sb_secret_` key from the same project as the URL. |
+| Table not found / `PGRST205` | Apply the migration and confirm `public` is exposed to the Data API. |
+| Permission denied / `42501` | Check the migration's grants and that the server uses the secret key. |
+| Connection failure | Check the URL, network connection, and whether the Supabase project is paused. |
+
+## Architecture
+
+```text
+React components -> TanStack Query hooks -> browser API client
+                                            |
+                                   Next.js Route Handlers
+                                            |
+                                   server movie services
+                                            |
+                                   Supabase / PostgreSQL
+```
+
+```text
+src/
+  app/
+    layout.tsx               Shared header, footer, main landmark, query provider
+    page.tsx                 Composes the movie feature
+    loading.tsx              Route-level skeleton fallback
+    globals.css              Theme tokens, focus styles, reduced-motion behavior
+    api/movies/              Collection and [id] REST handlers, API tests
+  features/movies/
+    components/              Watchlist orchestration and interaction tests
+      elements/              Add form, movie item, search, list skeleton
+      overlays/              Delete confirmation dialog
+    hooks/                   Query cache and mutations
+    schemas/                 Shared Zod validation and inferred request types
+    services/                Browser HTTP client and server-only DB operations
+    types.ts                 Movie type derived from the database row
+  components/
+    query-provider.tsx       One QueryClient per mounted application
+    ui/                      Shared shadcn primitives and loading indicator
+  lib/
+    api/                     JSON parsing and consistent error responses
+    supabase/                Server-only client and database types
+    utils.ts                 Class-name merging
+scripts/                     Live database and API checks
+supabase/migrations/         Versioned SQL schema
+tests/e2e/                   Browser workflows, accessibility, responsive checks
+```
+
+Movie-specific logic stays inside its feature. Shared UI and infrastructure stay
+outside it. Components and application functions use arrow functions. There are
+no generic repository layers, global state stores, or duplicate model definitions.
+
+## Technical decisions
+
+### Validation and persistence
+
+The form and API use the same strict Zod schemas. Titles and notes are trimmed;
+empty notes become `null`. Blank titles, invalid UUIDs, null characters, extra
+fields, and non-boolean watched values are rejected. There are no arbitrary text
+length limits. React renders titles and notes as text, not HTML.
+
+| Column | PostgreSQL type | Constraint/default |
+| --- | --- | --- |
+| `id` | `uuid` | Primary key; `gen_random_uuid()` |
+| `title` | `text` | Required; database check rejects blank values |
+| `notes` | `text` | Nullable |
+| `watched` | `boolean` | Required; defaults to `false` |
+| `created_at` | `timestamptz` | Required; defaults to `now()` |
+
+Titles may repeat. Reads order by `created_at DESC, id DESC`; a matching index
+supports deterministic newest-first results. The server client is initialized
+when needed, so builds do not require working database credentials. Database reads
+and list responses use `no-store` to avoid stale HTTP/server caches.
+
+### Query cache and optimistic writes
+
+- The `['movies']` query stays fresh for 30 seconds. There is no polling.
+- Toggle and delete mutations cancel in-flight reads, snapshot the list, and
+  update it immediately. Failed writes restore the snapshot before refetching.
+- Successful creation and watched updates use the returned server record;
+  confirmed deletion retains the optimistic removal. No extra GET is needed
+  when a complete list is already cached.
+- Failures refetch because the database may have changed despite a lost response.
+  Creating before the first successful list load also fetches the full list.
+- The UI permits one write at a time, keeping rollback straightforward. Stale
+  data refreshes on mount, focus, or reconnect; focus/reconnect refreshes are
+  suppressed during writes. This is not a realtime multi-user application.
+
+### Title search and notifications
+
+Search filters movie titles case-insensitively in the browser using the cached
+collection. Typing is immediate; the filter and URL update after a 300 ms pause.
+Clearing is immediate, and navigation cancels a pending search. The
+`q` URL parameter (for example, `/?q=arrival`) survives refresh and can be shared.
+Native history replacement keeps Next.js search parameters synchronized without
+refetching movies or creating a browser history entry per keystroke. Clearing
+search removes `q` while preserving unrelated parameters. Genre is not stored.
+
+[Sonner](https://ui.shadcn.com/docs/components/radix/sonner) provides dismissible
+success notifications and watched-update errors. Form validation and delete
+failures stay next to their controls so users can correct or retry them.
+
+### Loading, accessibility, and styling
+
+`app/loading.tsx` handles the Next.js route Suspense boundary. Client-side database
+fetching has its own pending state using the same shadcn list skeleton; route
+loading alone cannot cover TanStack Query requests. Fast route loads may skip the
+route fallback, and no artificial delays are added to the application.
+
+Buttons keep their loading text while requests are pending. A spinner rotates
+continuously, including when reduced motion is enabled, as a small pending-action
+indicator. Decorative animations and skeleton pulsing are disabled in that mode.
+
+The UI uses shadcn labels, linked field errors, live status/error messages,
+pressed/busy states, visible keyboard focus, and a skip link. The Radix delete
+dialog traps focus and restores it to the trigger or collection after closing.
+Long content wraps, and the dialog scrolls within the viewport.
+
+Tailwind uses shared color tokens and standard spacing/typography utilities.
+Button and field defaults live in the shared UI components. The form and collection
+stack on small screens and use a three-column grid on larger screens. Custom size
+calculations are reserved for keeping the dialog inside the viewport.
+
+## REST API
+
+| Method | Endpoint | Body | Success |
+| --- | --- | --- | --- |
+| GET | `/api/movies` | None | `200` with `Movie[]`, newest first |
+| POST | `/api/movies` | `{ "title": "Arrival", "notes": "Watch this weekend" }` | `201` with the created movie |
+| PATCH | `/api/movies/[id]` | `{ "watched": true }` | `200` with the updated movie |
+| DELETE | `/api/movies/[id]` | None | `204` with no body |
+
+Send `Content-Type: application/json` for POST and PATCH. Creation accepts only
+`title` and optional `notes`; PATCH accepts only `watched`. Database-generated
+fields cannot be overridden. There is no individual GET endpoint.
+
+Application errors share this shape; `issues` appears only for validation errors:
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "issues": [{ "path": "title", "message": "Title is required." }]
+  }
+}
+```
+
+| Status | Code | Meaning |
+| --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | Invalid fields or UUID |
+| 400 | `INVALID_JSON` | Empty, malformed, or unreadable JSON |
+| 404 | `NOT_FOUND` | PATCH/DELETE target does not exist |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` | POST/PATCH body is not JSON |
+| 500 | `INTERNAL_SERVER_ERROR` | Generic server failure; private DB details withheld |
+
+Next.js returns `405 Method Not Allowed` for unsupported methods, outside the
+application's JSON error envelope. Deleting a missing movie returns 404.
+
+## Testing and production build
+
+```sh
+npm test
+npm run test:watch
+npm run typecheck
+npm run lint
+npm run build
+npm start
+```
+
+`typecheck` generates Next.js route types and runs `tsc --noEmit`. The production
+build also checks types. `next/font` downloads Geist on an uncached build, so
+that first build needs network access.
+
+| Test location | Coverage |
+| --- | --- |
+| `src/features/movies/schemas/movie.schema.test.ts` | Normalization, UUIDs, required fields, strict inputs |
+| `src/app/api/movies/route.test.ts` | Real handlers/services/SDK with mocked HTTP transport |
+| `src/features/movies/components/movie-watchlist.test.tsx` | Forms, keyboard interaction, optimistic changes, rollback, reconciliation |
+| `src/features/movies/services/movies-api.test.ts` | JSON requests, empty responses, errors, cancellation |
+| `src/features/movies/components/elements/movie-search.test.tsx` | Debounce timing, immediate clear, navigation and unmount cleanup |
+| `src/app/loading.test.tsx` | Accessible route loading fallback |
+| `tests/e2e/watchlist.spec.ts` | Browser CRUD flow, URL search, spinner rotation, reduced motion, accessibility, responsive layouts |
+
+Jest uses Node for API tests and jsdom for React Testing Library tests. Rollback
+tests hold the reconciliation request open so a refetch cannot hide a broken
+rollback. The Jest and Playwright suites use mocked requests and do not modify
+Supabase data; the separate live verification scripts use temporary records.
+
+Install Chromium once, then run browser tests against a fresh production build:
+
+```sh
+npm exec -- playwright install chromium --only-shell
+npm run build
+npm run test:e2e
+```
+
+Playwright starts and stops a local server on port 3108. Screenshots and failure
+traces go into the ignored `test-results/` folder. Browser tests cover desktop,
+tablet, narrow phones, long content, and axe accessibility checks. Automated axe
+checks do not replace manual keyboard and screen-reader review.
+
+Verified locally on 2026-10-16: **109 Jest tests and 10 browser tests passed**,
+along with lint, TypeScript checks, and the production build. Live database,
+REST API, and browser CRUD checks also passed, including persistence across
+reloads; their temporary records were removed. Responsive browser checks covered
+320px, 390px, 768px, and 1440px widths.
+
+## Continuous integration
+
+[GitHub Actions](https://docs.github.com/en/actions/tutorials/build-and-test-code/nodejs)
+runs `.github/workflows/ci.yml` on pushes and pull requests, or manually from
+the Actions tab. It installs the lockfile dependencies on Node.js 22, runs lint,
+TypeScript and Jest checks, builds the app, and runs Chromium browser tests.
+The suites mock database requests, so no Supabase secrets are needed in CI.
+
+Continuous deployment is intentionally deferred until a hosting target and
+production access controls are configured. Pushing this repository runs checks;
+it does not deploy the application.
+
+## Security
+
+This V1 has a shared watchlist and **no authentication or authorization at the
+Next.js API boundary**. Anyone able to reach those endpoints can read or mutate
+movies. Localhost binding reduces accidental network exposure; it is not an
+access-control system. Do not publicly deploy this V1 as-is.
+
+The database enables RLS, revokes table privileges from `public`, `anon`, and
+`authenticated`, and grants CRUD only to `service_role`. Server-only modules keep
+the secret out of client imports. The secret bypasses RLS, so these database
+permissions do not protect the unauthenticated Next.js API. See the
+[Supabase API key documentation](https://supabase.com/docs/guides/getting-started/api-keys).
+
+Before public deployment, define authentication and ownership/authorization,
+request-size and rate limits, appropriate origin protections, and production
+secret handling. These are intentionally outside the current V1 implementation.
+
+The 2026-10-16 dependency review found **zero production dependency advisories**
+with `npm audit --omit=dev`. The full audit reported 24 development-tool advisories
+(19 moderate, 5 high), including the Jest `sprintf-js` and ESLint `braces` chains.
+Suggested automatic fixes downgrade Jest and Next's ESLint configuration to
+incompatible majors; those downgrades were not applied. Recheck the audit before
+upgrading or deploying; this is a dated check, not a guarantee of future safety.
