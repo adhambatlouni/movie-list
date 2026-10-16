@@ -204,11 +204,10 @@ export const MovieWatchlist = () => {
                 aria-label="Movies"
                 className="overflow-hidden rounded-xl border bg-card divide-y"
               >
-                {data.movies.map((movie, index) => (
+                {data.movies.map((movie) => (
                   <MovieItem
                     key={movie.id}
                     movie={movie}
-                    number={(page - 1) * MOVIES_PAGE_SIZE + index + 1}
                     disabled={isSaving}
                     saving={
                       update.isPending && update.variables?.id === movie.id
