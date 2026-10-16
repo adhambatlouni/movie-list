@@ -25,11 +25,15 @@ beforeEach(() => {
 
 describe("movie browser API client", () => {
   it("fetches the list without HTTP caching and forwards query cancellation", async () => {
-    fetchMock.mockResolvedValue(Response.json([movie]));
+    fetchMock.mockResolvedValue(
+      Response.json({ movies: [movie], total: 1, page: 2, pageSize: 5 }),
+    );
     const controller = new AbortController();
-    expect(await fetchMovies(controller.signal)).toEqual([movie]);
+    expect(
+      await fetchMovies({ q: "Arrival", page: 2 }, controller.signal),
+    ).toEqual({ movies: [movie], total: 1, page: 2, pageSize: 5 });
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/movies",
+      "/api/movies?q=Arrival&page=2",
       expect.objectContaining({
         signal: controller.signal,
         cache: "no-store",
@@ -93,7 +97,7 @@ describe("movie browser API client", () => {
 
   it("turns network failures into a readable error", async () => {
     fetchMock.mockRejectedValue(new TypeError("fetch failed"));
-    await expect(fetchMovies()).rejects.toThrow(
+    await expect(fetchMovies({ q: "", page: 1 })).rejects.toThrow(
       "Check your connection and try again.",
     );
   });
@@ -101,21 +105,21 @@ describe("movie browser API client", () => {
   it("preserves AbortError so cancelled queries are not reported as connection failures", async () => {
     const error = new DOMException("Request cancelled", "AbortError");
     fetchMock.mockRejectedValue(error);
-    await expect(fetchMovies()).rejects.toBe(error);
+    await expect(fetchMovies({ q: "", page: 1 })).rejects.toBe(error);
   });
 
   it("handles a non-JSON error response without exposing its contents", async () => {
     fetchMock.mockResolvedValue(
       new Response("<html>Internal proxy details</html>", { status: 502 }),
     );
-    await expect(fetchMovies()).rejects.toEqual(
+    await expect(fetchMovies({ q: "", page: 1 })).rejects.toEqual(
       new MovieApiError("Couldn’t save your change. Please try again."),
     );
   });
 
   it("rejects an unreadable successful response", async () => {
     fetchMock.mockResolvedValue(new Response("not JSON", { status: 200 }));
-    await expect(fetchMovies()).rejects.toThrow(
+    await expect(fetchMovies({ q: "", page: 1 })).rejects.toThrow(
       "Couldn’t read the response. Please try again.",
     );
   });

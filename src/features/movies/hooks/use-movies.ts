@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -7,92 +7,113 @@ import {
   removeMovie,
   setMovieWatched,
 } from "../services/movies-api";
-import type { Movie } from "../types";
+import type { Movie, MoviePage } from "../types";
 
 export const moviesQueryKey = ["movies"] as const;
 
-export const useMovies = () => {
+export const useMovies = (q: string, page: number) => {
   const client = useQueryClient();
   const canRefresh = () =>
     client.isMutating({ mutationKey: moviesQueryKey }) === 0;
   const query = useQuery({
-    queryKey: moviesQueryKey,
-    queryFn: ({ signal }) => fetchMovies(signal),
+    queryKey: [...moviesQueryKey, { q, page }],
+    queryFn: ({ signal }) => fetchMovies({ q, page }, signal),
     refetchOnWindowFocus: canRefresh,
     refetchOnReconnect: canRefresh,
   });
-  const reconcile = (_data: unknown, error: Error | null) => {
-    // A failed request may still have reached the database. Refetch after
-    // rollback, or when no complete list has been loaded. Successful writes
-    // already give us everything needed to update an existing list locally.
-    if (error || client.getQueryData(moviesQueryKey) === undefined) {
-      return client.invalidateQueries({
-        queryKey: moviesQueryKey,
-        exact: true,
-      });
-    }
+  const snapshot = async () => {
+    await client.cancelQueries({ queryKey: moviesQueryKey });
+    return {
+      previous: client.getQueriesData<MoviePage>({ queryKey: moviesQueryKey }),
+    };
   };
+  const rollback = (
+    _error: Error,
+    _input: unknown,
+    context?: Awaited<ReturnType<typeof snapshot>>,
+  ) => {
+    context?.previous.forEach(([key, data]) => client.setQueryData(key, data));
+  };
+  const replaceMovie = (saved: Movie) =>
+    client.setQueriesData<MoviePage>(
+      { queryKey: moviesQueryKey },
+      (data) =>
+        data && {
+          ...data,
+          movies: data.movies.map((movie) =>
+            movie.id === saved.id ? saved : movie,
+          ),
+        },
+    );
+  const refresh = () => client.invalidateQueries({ queryKey: moviesQueryKey });
 
   const create = useMutation({
     mutationKey: moviesQueryKey,
     mutationFn: addMovie,
     onMutate: () => client.cancelQueries({ queryKey: moviesQueryKey }),
-    onSuccess: (movie) => {
-      client.setQueryData<Movie[]>(moviesQueryKey, (movies) =>
-        movies
-          ? [movie, ...movies.filter((existing) => existing.id !== movie.id)]
-          : undefined,
-      );
+    // Creation returns to page one. Other pages are refreshed when visited.
+    onSuccess: () => {
+      void client.invalidateQueries({
+        queryKey: moviesQueryKey,
+        refetchType: "none",
+      });
+      void client.refetchQueries({
+        queryKey: [...moviesQueryKey, { q: "", page: 1 }],
+        exact: true,
+        type: "active",
+      });
     },
-    onSettled: reconcile,
+    onError: () => {
+      void refresh();
+    },
   });
-
   const update = useMutation({
     mutationKey: moviesQueryKey,
     mutationFn: ({ id, watched }: { id: string; watched: boolean }) =>
       setMovieWatched(id, { watched }),
     onMutate: async ({ id, watched }) => {
-      await client.cancelQueries({ queryKey: moviesQueryKey });
-      const previous = client.getQueryData<Movie[]>(moviesQueryKey);
-      client.setQueryData<Movie[]>(moviesQueryKey, (movies) =>
-        movies?.map((movie) =>
-          movie.id === id ? { ...movie, watched } : movie,
-        ),
+      const context = await snapshot();
+      client.setQueriesData<MoviePage>(
+        { queryKey: moviesQueryKey },
+        (data) =>
+          data && {
+            ...data,
+            movies: data.movies.map((movie) =>
+              movie.id === id ? { ...movie, watched } : movie,
+            ),
+          },
       );
-      return { previous };
+      return context;
     },
-    onError: (_error, _input, context) => {
-      if (context?.previous)
-        client.setQueryData(moviesQueryKey, context.previous);
+    onError: rollback,
+    onSuccess: replaceMovie,
+    onSettled: (_data, error) => {
+      if (error) return refresh();
     },
-    onSuccess: (saved) => {
-      client.setQueryData<Movie[]>(moviesQueryKey, (movies) =>
-        movies?.map((movie) => (movie.id === saved.id ? saved : movie)),
-      );
-    },
-    onSettled: reconcile,
   });
-
   const remove = useMutation({
     mutationKey: moviesQueryKey,
     mutationFn: removeMovie,
-    onMutate: async (id) => {
-      await client.cancelQueries({ queryKey: moviesQueryKey });
-      const previous = client.getQueryData<Movie[]>(moviesQueryKey);
-      client.setQueryData<Movie[]>(moviesQueryKey, (movies) =>
-        movies?.filter((movie) => movie.id !== id),
-      );
-      return { previous };
+    onMutate: async (id: string) => {
+      const context = await snapshot();
+      client.setQueriesData<MoviePage>({ queryKey: moviesQueryKey }, (data) => {
+        if (!data || !data.movies.some((movie) => movie.id === id)) return data;
+        return {
+          ...data,
+          total: data.total - 1,
+          movies: data.movies.filter((movie) => movie.id !== id),
+        };
+      });
+      return context;
     },
-    onError: (_error, _id, context) => {
-      if (context?.previous)
-        client.setQueryData(moviesQueryKey, context.previous);
-    },
-    onSettled: reconcile,
+    onError: rollback,
+    onSettled: refresh,
   });
-
-  // The page disables other writes while one is pending. This keeps optimistic
-  // rollback predictable without a queue or concurrent snapshot management.
-  const isSaving = create.isPending || update.isPending || remove.isPending;
-  return { query, create, update, remove, isSaving };
+  return {
+    query,
+    create,
+    update,
+    remove,
+    isSaving: create.isPending || update.isPending || remove.isPending,
+  };
 };

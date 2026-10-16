@@ -54,7 +54,23 @@ const mockApi = async (page: Page, initial: Movie[] = fixtures) => {
       return;
     }
     if (method === "GET") {
-      await route.fulfill({ json: movies });
+      const params = new URL(request.url()).searchParams;
+      const q = (params.get("q") ?? "").toLowerCase();
+      const matches = movies.filter((movie) =>
+        movie.title.toLowerCase().includes(q),
+      );
+      const current = Math.min(
+        Number(params.get("page") ?? 1),
+        Math.max(1, Math.ceil(matches.length / 5)),
+      );
+      await route.fulfill({
+        json: {
+          movies: matches.slice((current - 1) * 5, current * 5),
+          total: matches.length,
+          page: current,
+          pageSize: 5,
+        },
+      });
     } else if (method === "POST") {
       const movie: Movie = {
         ...request.postDataJSON(),
@@ -105,6 +121,7 @@ test("desktop: add, reload, toggle both ways, confirm delete, and keyboard focus
     ).violations,
   ).toEqual([]);
 
+  await page.getByRole("button", { name: "Add movie", exact: true }).click();
   await page
     .getByRole("textbox", { name: /Movie title/ })
     .fill("  In the Mood for Love  ");
@@ -113,32 +130,43 @@ test("desktop: add, reload, toggle both ways, confirm delete, and keyboard focus
   await expect(
     page.getByRole("heading", { name: "In the Mood for Love", exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("textbox", { name: /Movie title/ })).toHaveValue(
-    "",
-  );
+  await expect(page.getByRole("dialog")).toBeHidden();
   await expect(
-    page.getByRole("textbox", { name: /Movie title/ }),
+    page.getByRole("button", { name: "Add movie", exact: true }),
   ).toBeFocused();
   await expect(
     page.locator("[data-sonner-toast][data-type=success]"),
   ).toContainText("Added");
   await page.reload();
-  const toggle = page.getByRole("button", {
+  const toggle = page.getByRole("checkbox", {
     name: "Watched: In the Mood for Love",
     exact: true,
   });
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await toggle.focus();
+  await toggle.press("Space");
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
   await expect(toggle).toBeEnabled();
   await page.reload();
-  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
   await toggle.click();
   await expect(toggle).toBeEnabled();
-  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
   await page
     .getByRole("button", { name: "Delete In the Mood for Love", exact: true })
     .click();
   await expect(page.getByRole("button", { name: "Keep movie" })).toBeFocused();
+  // Measure final colors after the dialog and toast transitions finish.
+  await page.evaluate(async () => {
+    await Promise.all(
+      document
+        .getAnimations()
+        .filter(
+          (animation) =>
+            animation.effect?.getComputedTiming().iterations !== Infinity,
+        )
+        .map((animation) => animation.finished.catch(() => {})),
+    );
+  });
   expect(
     (
       await new AxeBuilder({ page })
@@ -175,11 +203,12 @@ test("phone: empty state, validation, long content, and accessible delete dialog
     fullPage: true,
     animations: "disabled",
   });
+  await page.getByRole("button", { name: "Add your first movie" }).click();
   await page.getByRole("button", { name: "Add to watchlist" }).click();
   await expect(
     page.getByRole("textbox", { name: /Movie title/ }),
   ).toBeFocused();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+  await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
     "Title is required.",
   );
   expect(
@@ -199,6 +228,14 @@ test("phone: empty state, validation, long content, and accessible delete dialog
     page.getByRole("heading", { name: longTitle, exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Close toast" }).click();
+  const notes = page.getByRole("button", {
+    name: `Notes for ${longTitle}`,
+    exact: true,
+  });
+  await expect(notes).toHaveAttribute("aria-expanded", "false");
+  await notes.focus();
+  await notes.press("Enter");
+  await expect(notes).toHaveAttribute("aria-expanded", "true");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -246,7 +283,7 @@ test("HTTP errors preserve inputs, roll back writes, and can be retried", async 
   ).toBeVisible();
   api.failList = false;
   await page.getByRole("button", { name: "Try again" }).click();
-  const toggle = page.getByRole("button", {
+  const toggle = page.getByRole("checkbox", {
     name: "Watched: Perfect Days",
     exact: true,
   });
@@ -257,18 +294,20 @@ test("HTTP errors preserve inputs, roll back writes, and can be retried", async 
     page.locator("[data-sonner-toast][data-type=error]"),
   ).toContainText("Something went wrong");
   await expect(toggle).toBeEnabled();
-  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
   await page.getByRole("button", { name: "Close toast" }).click();
+  await page.getByRole("button", { name: "Add movie", exact: true }).click();
   await page
     .getByRole("textbox", { name: /Movie title/ })
     .fill("Keep this draft");
   await page.getByRole("button", { name: "Add to watchlist" }).click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+  await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
     "Something went wrong",
   );
   await expect(page.getByRole("textbox", { name: /Movie title/ })).toHaveValue(
     "Keep this draft",
   );
+  await page.getByRole("button", { name: "Close add movie" }).click();
   await page
     .getByRole("button", { name: "Delete Perfect Days", exact: true })
     .click();
@@ -301,10 +340,10 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
         release = resolve;
       });
     };
-    const verifyPending = async (button: Locator) => {
+    const verifyPending = async (button: Locator, container = button) => {
       await expect(button).toBeDisabled();
-      await expect(button).toHaveAttribute("aria-busy", "true");
-      const spinner = button.locator('[data-slot="spinner"]');
+      await expect(container).toHaveAttribute("aria-busy", "true");
+      const spinner = container.locator('[data-slot="spinner"]');
       await expect(spinner).toBeVisible();
       const initialTransform = await spinner.evaluate(
         (element) => getComputedStyle(element).transform,
@@ -333,25 +372,30 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
 
     try {
       holdWrite();
+      await page
+        .getByRole("button", { name: "Add movie", exact: true })
+        .click();
       await page.getByLabel("Movie title").fill("Slow request check");
       await page.getByRole("button", { name: "Add to watchlist" }).click();
       await verifyPending(page.getByRole("button", { name: "Adding movie…" }));
-      release();
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("dialog")).toBeVisible();
       await expect(
-        page.getByRole("button", { name: "Add to watchlist" }),
-      ).toBeEnabled();
+        page.getByRole("button", { name: "Close add movie" }),
+      ).toBeDisabled();
+      release();
+      await expect(page.getByRole("dialog")).toBeHidden();
 
       holdWrite();
-      const toggle = page.getByRole("button", {
+      const toggle = page.getByRole("checkbox", {
         name: "Watched: Perfect Days",
         exact: true,
       });
       await toggle.click();
-      await expect(toggle).toHaveText("Saving…");
-      await verifyPending(toggle);
+      await verifyPending(toggle, toggle.locator(".."));
       release();
       await expect(toggle).toBeEnabled();
-      await expect(toggle).toHaveAttribute("aria-pressed", "true");
+      await expect(toggle).toHaveAttribute("aria-checked", "true");
 
       await page
         .getByRole("button", { name: "Delete Perfect Days", exact: true })
@@ -384,6 +428,12 @@ for (const width of [320, 768, 1440]) {
       await expect(
         page.getByRole("status", { name: "Loading movies" }),
       ).toBeVisible();
+      await expect(
+        page.locator('[data-slot="pagination-skeleton"]'),
+      ).toBeVisible();
+      const loadingTop = (await page
+        .getByRole("status", { name: "Loading movies" })
+        .boundingBox())!.y;
       expect(
         await page.locator('[data-slot="skeleton"]').count(),
       ).toBeGreaterThan(0);
@@ -401,6 +451,12 @@ for (const width of [320, 768, 1440]) {
       await expect(
         page.getByRole("heading", { name: "Perfect Days", exact: true }),
       ).toBeVisible();
+      const loadedTop = (await page
+        .getByRole("list", { name: "Movies" })
+        .boundingBox())!.y;
+      expect(Math.abs(loadedTop - loadingTop)).toBeLessThanOrEqual(
+        width === 320 ? 25 : 1,
+      );
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,
@@ -435,13 +491,16 @@ test("movie titles and notes are displayed as text, not executable HTML", async 
   await expect(
     page.getByRole("heading", { name: title, exact: true }),
   ).toBeVisible();
+  await page
+    .getByRole("button", { name: `Notes for ${title}`, exact: true })
+    .click();
   await expect(
     page.getByText("<script>alert(1)</script>", { exact: true }),
   ).toBeVisible();
   await expect(page.locator('img[src="x"]')).toHaveCount(0);
 });
 
-test("title search uses the URL, survives refresh, and filters without refetching", async ({
+test("title search debounces server requests, uses the URL, and survives refresh", async ({
   page,
 }) => {
   await mockApi(page);
@@ -480,7 +539,7 @@ test("title search uses the URL, survives refresh, and filters without refetchin
   await expect(
     page.getByRole("list", { name: "Movies" }).getByRole("listitem"),
   ).toHaveCount(1);
-  expect(reads).toBe(initialReads);
+  expect(reads).toBe(initialReads + 3);
   await page.reload();
   await expect(search).toHaveValue("perfect days");
   await expect(
@@ -493,4 +552,181 @@ test("title search uses the URL, survives refresh, and filters without refetchin
   await expect(search).toHaveValue("arrival");
   await page.goBack();
   await expect(search).toHaveValue("perfect days");
+});
+
+const paginatedFixtures = Array.from({ length: 11 }, (_, index) => ({
+  ...fixtures[0],
+  id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+  title: `Movie ${String(index + 1).padStart(2, "0")}`,
+  notes: null,
+}));
+
+test("an older search response cannot replace the newest search results", async ({
+  page,
+}) => {
+  await mockApi(page);
+  let release!: () => void;
+  let finished!: () => void;
+  const delivered = new Promise<void>((resolve) => {
+    finished = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/movies?q=arrival&*", async (route) => {
+    await gate;
+    await route.fulfill({
+      json: { movies: [fixtures[2]], total: 1, page: 1, pageSize: 5 },
+    });
+    finished();
+  });
+  try {
+    await page.goto("/");
+    const search = page.getByRole("searchbox");
+    const started = page.waitForRequest(
+      (request) => new URL(request.url()).searchParams.get("q") === "arrival",
+    );
+    await search.fill("arrival");
+    await started;
+    await search.fill("perfect");
+    await expect(
+      page.getByRole("heading", { name: "Perfect Days", exact: true }),
+    ).toBeVisible();
+    release();
+    await delivered;
+    await expect(page).toHaveURL(/q=perfect/);
+    await expect(
+      page.getByRole("heading", { name: "Arrival", exact: true }),
+    ).toBeHidden();
+  } finally {
+    release();
+  }
+});
+
+test("pagination shows five movies, preserves URL state, and resets for search and creation", async ({
+  page,
+}, testInfo) => {
+  await mockApi(page, paginatedFixtures);
+  let reads = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "GET" &&
+      new URL(request.url()).pathname === "/api/movies"
+    )
+      reads++;
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/?other=keep");
+  const list = page.getByRole("list", { name: "Movies" });
+  await expect(list.getByRole("listitem")).toHaveCount(5);
+  await expect(
+    page.getByText("1-5 of 11 movies", { exact: true }),
+  ).toBeVisible();
+  const initialReads = reads;
+  await page.getByRole("link", { name: "Go to next page" }).click();
+  await expect(page).toHaveURL(/other=keep&page=2/);
+  await expect(
+    page.getByRole("heading", { name: "Movie 06", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Page 2", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  expect(reads).toBe(initialReads + 1);
+  await page.screenshot({
+    path: testInfo.outputPath("pagination-mobile.png"),
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Movie 06", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Page 3", exact: true }).click();
+  await expect(list.getByRole("listitem")).toHaveCount(1);
+  await expect(page.locator('[aria-label="Go to next page"]')).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+  await page.goBack();
+  await expect(
+    page.getByRole("heading", { name: "Movie 06", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("searchbox").fill("movie 01");
+  await expect(list.getByRole("listitem")).toHaveCount(1);
+  await expect(page).not.toHaveURL(/page=/);
+  await page.getByRole("button", { name: "Clear title search" }).click();
+  await expect(list.getByRole("listitem")).toHaveCount(5);
+  await page.getByRole("link", { name: "Page 2", exact: true }).click();
+  await page.getByRole("button", { name: "Add movie", exact: true }).click();
+  await page.getByRole("textbox", { name: /Movie title/ }).fill("Newest movie");
+  await page.getByRole("button", { name: "Add to watchlist" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Newest movie", exact: true }),
+  ).toBeVisible();
+  await expect(page).not.toHaveURL(/page=/);
+});
+
+test("deleting the final page item restores it on failure and falls back after success", async ({
+  page,
+}) => {
+  const api = await mockApi(page, paginatedFixtures.slice(0, 6));
+  await page.goto("/?page=2");
+  await expect(
+    page.getByRole("heading", { name: "Movie 06", exact: true }),
+  ).toBeVisible();
+  api.failWrites = true;
+  await page
+    .getByRole("button", { name: "Delete Movie 06", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Delete movie", exact: true }).click();
+  await expect(page.getByRole("alertdialog").getByRole("alert")).toBeVisible();
+  await page.getByRole("button", { name: "Keep movie" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Movie 06", exact: true }),
+  ).toBeVisible();
+  api.failWrites = false;
+  await page
+    .getByRole("button", { name: "Delete Movie 06", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Delete movie", exact: true }).click();
+  await expect(page.getByRole("alertdialog")).toBeHidden();
+  await expect(
+    page.getByRole("list", { name: "Movies" }).getByRole("listitem"),
+  ).toHaveCount(5);
+  await expect(
+    page.getByText("1-5 of 5 movies", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /Your collection/ }),
+  ).toBeFocused();
+});
+
+test("invalid and out-of-range page parameters still show a valid page", async ({
+  page,
+}) => {
+  await mockApi(page, paginatedFixtures);
+  for (const value of ["nope", "-2", "1.5"]) {
+    await page.goto(`/?page=${value}`);
+    await expect(
+      page.getByRole("heading", { name: "Movie 01", exact: true }),
+    ).toBeVisible();
+  }
+  await page.goto("/?page=999");
+  await expect(
+    page.getByRole("heading", { name: "Movie 11", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("list", { name: "Movies" }).getByRole("listitem"),
+  ).toHaveCount(1);
 });

@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Watchlist — Your next great watch",
+  title: "Watchlist - Your next great watch",
   description:
     "Keep your movie recommendations in one place. Save films, track what you have watched, and plan your next movie night.",
 };
@@ -36,7 +36,7 @@ const RootLayout = ({ children }: LayoutProps<"/">) => {
           Skip to content
         </a>
         <header className="border-b">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
             <Link
               href="/"
               aria-label="Watchlist home"
@@ -50,20 +50,19 @@ const RootLayout = ({ children }: LayoutProps<"/">) => {
               </span>
             </Link>
             <span className="text-right text-xs font-medium tracking-widest text-muted-foreground">
-              FOR THE LOVE OF FILM
+              Your movie list
             </span>
           </div>
         </header>
         <main
           id="main"
           tabIndex={-1}
-          className="mx-auto w-full max-w-6xl flex-1 px-5 pb-16 pt-10 sm:px-8 sm:pt-14"
+          className="mx-auto w-full max-w-5xl flex-1 px-5 pb-10 pt-7 sm:px-8 sm:pt-8"
         >
           <QueryProvider>{children}</QueryProvider>
         </main>
-        <footer className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 border-t px-5 py-6 text-xs text-muted-foreground sm:px-8">
-          <span>Good films. All in one place.</span>
-          <span>Save it. Watch it. Remember it.</span>
+        <footer className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 border-t px-5 py-6 text-xs text-muted-foreground sm:px-8">
+          <span>Movie Watchlist</span>
         </footer>
         <Toaster />
       </body>

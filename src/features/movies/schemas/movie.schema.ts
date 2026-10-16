@@ -22,3 +22,15 @@ export const updateMovieSchema = z.strictObject({
 
 export type CreateMovieInput = z.infer<typeof createMovieSchema>;
 export type UpdateMovieInput = z.infer<typeof updateMovieSchema>;
+
+export const MOVIES_PAGE_SIZE = 5;
+export const movieListSchema = z.object({
+  q: text.transform((value) => value.trim()).default(""),
+  page: z
+    .string()
+    .regex(/^[1-9]\d*$/, "Page must be a positive integer.")
+    .transform(Number)
+    .pipe(z.number().int().max(1_000_000))
+    .default(1),
+});
+export type MovieListInput = z.infer<typeof movieListSchema>;

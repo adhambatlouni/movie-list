@@ -1,7 +1,16 @@
-"use client";
+﻿"use client";
 
-import { Check, Circle, Trash2 } from "lucide-react";
+import { useId } from "react";
+import { Minus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import type { Movie } from "../../types";
@@ -23,86 +32,75 @@ export const MovieItem = ({
   onToggle,
   onDelete,
 }: Props) => {
+  const checkboxId = useId();
   return (
-    <li
-      className={cn(
-        "rounded-xl border bg-card p-5 transition-colors sm:p-6",
-        movie.watched && "bg-card/60",
-      )}
-    >
-      <div className="flex gap-4 sm:gap-5">
-        <div
-          aria-hidden="true"
-          className={cn(
-            "flex h-16 w-12 shrink-0 items-center justify-center rounded-lg border border-primary/10 bg-secondary font-mono text-sm text-primary sm:h-20 sm:w-14",
-            movie.watched && "border-border bg-muted text-muted-foreground",
-          )}
-        >
-          {String(number).padStart(2, "0")}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="mb-1.5 flex items-start justify-between gap-3">
-            <h3 className="min-w-0 text-lg font-semibold leading-7 tracking-tight wrap-anywhere">
+    <li className={cn(movie.watched && "bg-muted/25")}>
+      <Accordion type="single" collapsible>
+        <AccordionItem value="notes">
+          <div className="flex min-h-20 items-center gap-2 pl-3 sm:gap-4 sm:pl-5">
+            <span
+              aria-hidden="true"
+              className="hidden w-5 shrink-0 font-mono text-xs text-muted-foreground sm:block"
+            >
+              {String(number).padStart(2, "0")}
+            </span>
+            <h3 className="min-w-0 flex-1 py-4 text-sm font-semibold leading-6 wrap-anywhere sm:text-base">
               {movie.title}
             </h3>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              disabled={disabled}
-              onClick={(event) => onDelete(event.currentTarget)}
-              aria-label={`Delete ${movie.title}`}
-              className="-mr-2 -mt-2 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-            >
-              <Trash2 aria-hidden="true" />
-            </Button>
+            <div className="flex shrink-0 items-center gap-1">
+              <Label
+                htmlFor={checkboxId}
+                aria-busy={saving}
+                className="relative flex size-11 cursor-pointer items-center justify-center gap-2 text-sm text-muted-foreground sm:w-32 sm:justify-start"
+              >
+                <Checkbox
+                  id={checkboxId}
+                  checked={movie.watched}
+                  onCheckedChange={onToggle}
+                  disabled={disabled}
+                  aria-label={`Watched: ${movie.title}`}
+                />
+                <span className="sr-only sm:not-sr-only">
+                  {saving ? "Saving..." : "Watched"}
+                </span>
+                {saving && (
+                  <Spinner className="absolute right-0 size-3 sm:right-2" />
+                )}
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={disabled}
+                aria-label={`Delete ${movie.title}`}
+                onClick={(event) => onDelete(event.currentTarget)}
+                className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 aria-hidden="true" />
+              </Button>
+            </div>
+            {movie.notes ? (
+              <AccordionTrigger
+                aria-label={`Notes for ${movie.title}`}
+                title="Show or hide notes"
+                className="h-full min-h-20 w-12 justify-center rounded-none border-l bg-muted/20 hover:bg-muted/60 sm:w-14"
+              >
+                <span className="sr-only">Notes</span>
+              </AccordionTrigger>
+            ) : (
+              <span className="flex w-12 shrink-0 self-stretch items-center justify-center border-l text-muted-foreground/50 sm:w-14">
+                <Minus aria-hidden="true" className="size-4" />
+                <span className="sr-only">No notes</span>
+              </span>
+            )}
           </div>
           {movie.notes && (
-            <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground wrap-anywhere">
+            <AccordionContent className="border-t bg-muted/20 px-4 py-4 sm:px-14">
               {movie.notes}
-            </p>
+            </AccordionContent>
           )}
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={disabled}
-              aria-label={`Watched: ${movie.title}`}
-              aria-pressed={movie.watched}
-              aria-busy={saving}
-              onClick={onToggle}
-              className={cn(
-                "-ml-2 px-2 text-muted-foreground",
-                movie.watched && "text-primary",
-              )}
-            >
-              {saving ? (
-                <Spinner />
-              ) : movie.watched ? (
-                <Check aria-hidden="true" />
-              ) : (
-                <Circle aria-hidden="true" />
-              )}
-              {saving
-                ? "Saving…"
-                : movie.watched
-                  ? "Watched"
-                  : "Mark as watched"}
-            </Button>
-            <span
-              className={cn(
-                "rounded-full px-2.5 py-1 text-xs font-medium tracking-wide",
-                movie.watched
-                  ? "bg-secondary text-primary"
-                  : "bg-muted text-muted-foreground",
-              )}
-            >
-              {movie.watched ? "CREDITS ROLLED" : "UP NEXT"}
-            </span>
-          </div>
-        </div>
-      </div>
+        </AccordionItem>
+      </Accordion>
     </li>
   );
 };

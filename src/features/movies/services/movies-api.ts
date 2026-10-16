@@ -2,7 +2,7 @@ import type {
   CreateMovieInput,
   UpdateMovieInput,
 } from "../schemas/movie.schema";
-import type { Movie } from "../types";
+import type { Movie, MoviePage } from "../types";
 
 type ValidationIssue = { path: string; message: string };
 
@@ -52,8 +52,15 @@ const request = async <T>(path = "", options?: RequestInit): Promise<T> => {
   return body as T;
 };
 
-export const fetchMovies = (signal?: AbortSignal) => {
-  return request<Movie[]>("", { signal });
+export const fetchMovies = (
+  params: { q: string; page: number },
+  signal?: AbortSignal,
+) => {
+  const search = new URLSearchParams({
+    q: params.q,
+    page: String(params.page),
+  });
+  return request<MoviePage>(`?${search}`, { signal });
 };
 
 export const addMovie = (input: CreateMovieInput) => {

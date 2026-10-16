@@ -32,10 +32,17 @@ const request = (method: string, body?: unknown) =>
     headers: { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-const databaseResponse = (body: unknown, status = 200) =>
+const databaseResponse = (
+  body: unknown,
+  status = 200,
+  total = Array.isArray(body) ? body.length : 0,
+) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Content-Range": `0-4/${total}`,
+    },
   });
 
 let fetchMock: jest.SpiedFunction<typeof fetch>;
@@ -63,22 +70,96 @@ afterEach(() => {
 
 describe("GET /api/movies", () => {
   it("returns movies using newest-first ordering with an ID tie-breaker", async () => {
-    fetchMock.mockResolvedValueOnce(databaseResponse([movie]));
-    const response = await GET();
+    fetchMock.mockResolvedValue(databaseResponse([movie]));
+    const response = await GET(request("GET"));
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual([movie]);
+    expect(await response.json()).toEqual({
+      movies: [movie],
+      total: 1,
+      page: 1,
+      pageSize: 5,
+    });
     expect(response.headers.get("cache-control")).toBe("no-store");
-    const [url, options] = fetchMock.mock.calls[0];
+    const [url, options] = fetchMock.mock.calls[1];
     expect(new URL(String(url)).searchParams.get("order")).toBe(
       "created_at.desc,id.desc",
     );
     expect(options?.cache).toBe("no-store");
   });
 
-  it("returns an empty array for an empty watchlist", async () => {
+  it("returns an empty page for an empty watchlist", async () => {
     fetchMock.mockResolvedValueOnce(databaseResponse([]));
-    expect(await (await GET()).json()).toEqual([]);
+    expect(await (await GET(request("GET"))).json()).toEqual({
+      movies: [],
+      total: 0,
+      page: 1,
+      pageSize: 5,
+    });
+  });
+});
+
+describe("server search and pagination", () => {
+  it("filters and counts on the database and requests only five ordered rows", async () => {
+    fetchMock
+      .mockResolvedValueOnce(databaseResponse([], 200, 12))
+      .mockResolvedValueOnce(databaseResponse([movie]));
+    const response = await GET(
+      new Request("http://localhost/api/movies?q=Arrival&page=2"),
+    );
+    expect(await response.json()).toEqual({
+      movies: [movie],
+      total: 12,
+      page: 2,
+      pageSize: 5,
+    });
+    expect(fetchMock.mock.calls[0][1]?.method).toBe("HEAD");
+    for (const [url] of fetchMock.mock.calls)
+      expect(new URL(String(url)).searchParams.get("title")).toBe(
+        "imatch.Arrival",
+      );
+    const url = new URL(String(fetchMock.mock.calls[1][0]));
+    expect(url.searchParams.get("offset")).toBe("5");
+    expect(url.searchParams.get("limit")).toBe("5");
+  });
+  it("clamps an out-of-range page before fetching rows", async () => {
+    fetchMock
+      .mockResolvedValueOnce(databaseResponse([], 200, 6))
+      .mockResolvedValueOnce(databaseResponse([movie]));
+    const response = await GET(
+      new Request("http://localhost/api/movies?page=99"),
+    );
+    expect(await response.json()).toMatchObject({ page: 2, total: 6 });
+    expect(
+      new URL(String(fetchMock.mock.calls[1][0])).searchParams.get("offset"),
+    ).toBe("5");
+  });
+  it.each(["0", "-1", "1.5", "oops", "1000001"])(
+    "rejects invalid page %s before database access",
+    async (page) => {
+      expect(
+        (await GET(new Request("http://localhost/api/movies?page=" + page)))
+          .status,
+      ).toBe(400);
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+  it("treats wildcard characters as literal title text", async () => {
+    fetchMock.mockResolvedValueOnce(databaseResponse([], 200, 0));
+    await GET(
+      new Request(
+        "http://localhost/api/movies?q=" + encodeURIComponent("a.*_[x]%"),
+      ),
+    );
+    expect(
+      new URL(String(fetchMock.mock.calls[0][0])).searchParams.get("title"),
+    ).toBe(String.raw`imatch.a\.\*_\[x\]%`);
+  });
+  it("handles a row-read failure after a successful count", async () => {
+    fetchMock
+      .mockResolvedValueOnce(databaseResponse([], 200, 1))
+      .mockResolvedValueOnce(databaseResponse({ message: "private" }, 400));
+    expect((await GET(request("GET"))).status).toBe(500);
   });
 });
 
@@ -250,7 +331,7 @@ describe.each(["POST", "PATCH"])("%s request body handling", (method) => {
 });
 
 describe.each([
-  ["GET", () => GET()],
+  ["GET", () => GET(request("GET"))],
   ["POST", () => POST(request("POST", { title: "Arrival" }))],
   ["PATCH", () => PATCH(request("PATCH", { watched: true }), context())],
   ["DELETE", () => DELETE(request("DELETE"), context())],

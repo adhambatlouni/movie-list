@@ -3,7 +3,6 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./database.types";
 
-/** Create a privileged client for server-side database operations only. */
 export const createSupabaseServerClient = () => {
   const url = process.env.SUPABASE_URL?.trim();
   const secretKey = process.env.SUPABASE_SECRET_KEY?.trim();

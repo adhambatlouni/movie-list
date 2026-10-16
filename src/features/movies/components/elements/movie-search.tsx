@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label";
 export const MovieSearch = ({
   value,
   onChange,
+  disabled = false,
 }: {
+  disabled?: boolean;
   value: string;
   onChange: (value: string) => void;
 }) => {
@@ -38,23 +40,25 @@ export const MovieSearch = ({
       <div className="relative">
         <Search
           aria-hidden="true"
-          className="pointer-events-none absolute left-3 top-4 size-4 text-muted-foreground"
+          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
         />
         <Input
+          disabled={disabled}
           id="movie-search"
           type="search"
           placeholder="Search by movie title…"
           value={draft}
           onChange={(event) => change(event.target.value)}
-          className="pl-10 pr-12 [&::-webkit-search-cancel-button]:hidden"
+          className="h-11 pl-10 pr-12 [&::-webkit-search-cancel-button]:hidden"
         />
         {draft && (
           <Button
+            disabled={disabled}
             type="button"
             variant="ghost"
             size="icon"
             aria-label="Clear title search"
-            className="absolute right-0.5 top-0.5"
+            className="absolute right-0 top-0"
             onClick={() => {
               change("");
               document.getElementById("movie-search")?.focus();
