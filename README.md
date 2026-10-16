@@ -215,7 +215,9 @@ indicator. Decorative animations and skeleton pulsing are disabled in that mode.
 
 The UI uses shadcn labels, linked field errors, live status/error messages,
 checked/busy states, visible keyboard focus, and a skip link. Watched status uses
-a shadcn checkbox, and notes expand below each row using a separate accordion control on the right. Add and delete
+a shadcn checkbox beside the title, with a visible "To watch" or "Watched" label.
+Delete and notes controls sit together on the right; notes expand below the title.
+Movies without notes have no expand control. Add and delete
 dialogs trap focus and restore it after closing. Long content wraps, and dialogs
 scroll within the viewport.
 
@@ -223,7 +225,8 @@ Tailwind uses shared color tokens and standard spacing/typography utilities.
 Button and field defaults live in shared UI components. The full-width collection
 uses evenly spaced compact rows with pagination above the list. Pagination and
 rows have matching loading skeletons during the initial fetch. The add form opens in a dialog
-to leave room for browsing. Rows wrap their controls on narrow screens.
+to leave room for browsing. Titles wrap on narrow screens while controls retain
+comfortable touch targets. Rows use subtle horizontal separators without vertical dividers.
 
 ## REST API
 
