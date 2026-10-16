@@ -1,26 +1,101 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
+@import "tw-animate-css";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f5f3ed;
+  --foreground: #243129;
+  --card: #fffefb;
+  --card-foreground: #243129;
+  --popover: #fffefb;
+  --popover-foreground: #243129;
+  --primary: #245b46;
+  --primary-foreground: #ffffff;
+  --secondary: #e7ede3;
+  --secondary-foreground: #245b46;
+  --muted: #ebece5;
+  --muted-foreground: #606c63;
+  --accent: #e7ede3;
+  --accent-foreground: #245b46;
+  --destructive: #ab3037;
+  --destructive-foreground: #ffffff;
+  --border: #dcdfd5;
+  --input: #858f7f;
+  --ring: #245b46;
+  --radius: 0.75rem;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  }
+  ::selection {
+    background: #d7e4d3;
+    color: #243129;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 4px;
+  }
+  button:not(:disabled),
+  a {
+    cursor: pointer;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* This small progress indicator stays animated, including in reduced-motion mode. */
+[data-slot="spinner"] {
+  animation: watchlist-spin 0.8s linear infinite !important;
+  transform-origin: center;
+}
+
+@keyframes watchlist-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *:not([data-slot="spinner"]),
+  *::before,
+  *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
