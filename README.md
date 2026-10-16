@@ -79,6 +79,7 @@ npm run api:check -- 3109
 ```
 
 This verifies ordering, normalization, watched/unwatched persistence, deletion,
+server search (including literal punctuation), five-row pagination, page bounds,
 validation, and error statuses. Cleanup targets only this run's temporary movies.
 If a network failure prevents cleanup, the script prints the exact title prefix
 to remove. For a manual UI check, add a movie, refresh, toggle watched, refresh,
@@ -117,12 +118,12 @@ src/
     api/movies/              Collection and [id] REST handlers, API tests
   features/movies/
     components/              Watchlist orchestration and interaction tests
-      elements/              Add form, movie item, search, list skeleton
-      overlays/              Delete confirmation dialog
+      elements/              Form, movie item, search, pagination, list skeleton
+      overlays/              Add movie and delete confirmation dialogs
     hooks/                   Query cache and mutations
     schemas/                 Shared Zod validation and inferred request types
     services/                Browser HTTP client and server-only DB operations
-    types.ts                 Movie type derived from the database row
+    types.ts                 Database movie type and paginated response
   components/
     query-provider.tsx       One QueryClient per mounted application
     ui/                      Shared shadcn primitives and loading indicator
@@ -163,27 +164,39 @@ and list responses use `no-store` to avoid stale HTTP/server caches.
 
 ### Query cache and optimistic writes
 
-- The `['movies']` query stays fresh for 30 seconds. There is no polling.
-- Toggle and delete mutations cancel in-flight reads, snapshot the list, and
-  update it immediately. Failed writes restore the snapshot before refetching.
-- Successful creation and watched updates use the returned server record;
-  confirmed deletion retains the optimistic removal. No extra GET is needed
-  when a complete list is already cached.
+- Each search/page has a separate cache entry: `['movies', { q, page }]`.
+  Queries stay fresh for 30 seconds. There is no polling.
+- Toggle and delete cancel in-flight reads, snapshot cached pages, and update
+  visible records immediately. Failed writes restore those snapshots before
+  refetching. Successful toggles use the returned record without another GET.
+- Creation returns to the unfiltered first page and refreshes it. Deletion
+  refreshes the active page to fill the gap and correct totals. Other cached
+  pages become stale and refresh when visited.
 - Failures refetch because the database may have changed despite a lost response.
-  Creating before the first successful list load also fetches the full list.
-- The UI permits one write at a time, keeping rollback straightforward. Stale
+- The UI permits one write at a time to keep rollback straightforward. Stale
   data refreshes on mount, focus, or reconnect; focus/reconnect refreshes are
   suppressed during writes. This is not a realtime multi-user application.
 
-### Title search and notifications
+### Search, pagination, and notifications
 
-Search filters movie titles case-insensitively in the browser using the cached
-collection. Typing is immediate; the filter and URL update after a 300 ms pause.
-Clearing is immediate, and navigation cancels a pending search. The
-`q` URL parameter (for example, `/?q=arrival`) survives refresh and can be shared.
-Native history replacement keeps Next.js search parameters synchronized without
-refetching movies or creating a browser history entry per keystroke. Clearing
-search removes `q` while preserving unrelated parameters. Genre is not stored.
+Search and pagination run on the server. The browser sends `q` and `page` to
+`GET /api/movies`. Supabase filters titles case-insensitively and returns at most
+five rows, ordered newest first. Search escapes regex characters before using
+PostgREST's `imatch` operator, so punctuation is literal rather than a wildcard.
+Genre is not stored.
+
+The service counts matching rows, clamps the requested page to the available
+range, then fetches that page. This uses two database requests for a nonempty
+result and one for an empty result. Keeping those steps explicit avoids multiple
+fallback queries after deleting the last item on a page. Count and rows are
+separate reads, so simultaneous external writes can briefly change the totals.
+
+Typing updates the input immediately; a 300 ms debounce updates the URL and
+starts the search request. Clearing is immediate. Navigation cancels a pending
+search, and obsolete network requests are aborted. Search uses `?q=arrival`;
+pagination adds `page=2`. Both survive refresh. Native history keeps Next.js
+search parameters synchronized, preserves unrelated parameters, and lets Back
+and Forward navigate pages. Search and creation return to page one.
 
 [Sonner](https://ui.shadcn.com/docs/components/radix/sonner) provides dismissible
 success notifications and watched-update errors. Form validation and delete
@@ -201,23 +214,30 @@ continuously, including when reduced motion is enabled, as a small pending-actio
 indicator. Decorative animations and skeleton pulsing are disabled in that mode.
 
 The UI uses shadcn labels, linked field errors, live status/error messages,
-pressed/busy states, visible keyboard focus, and a skip link. The Radix delete
-dialog traps focus and restores it to the trigger or collection after closing.
-Long content wraps, and the dialog scrolls within the viewport.
+checked/busy states, visible keyboard focus, and a skip link. Watched status uses
+a shadcn checkbox, and notes expand below each row using a separate accordion control on the right. Add and delete
+dialogs trap focus and restore it after closing. Long content wraps, and dialogs
+scroll within the viewport.
 
 Tailwind uses shared color tokens and standard spacing/typography utilities.
-Button and field defaults live in the shared UI components. The form and collection
-stack on small screens and use a three-column grid on larger screens. Custom size
-calculations are reserved for keeping the dialog inside the viewport.
+Button and field defaults live in shared UI components. The full-width collection
+uses evenly spaced compact rows with pagination above the list. Pagination and
+rows have matching loading skeletons during the initial fetch. The add form opens in a dialog
+to leave room for browsing. Rows wrap their controls on narrow screens.
 
 ## REST API
 
 | Method | Endpoint | Body | Success |
 | --- | --- | --- | --- |
-| GET | `/api/movies` | None | `200` with `Movie[]`, newest first |
+| GET | `/api/movies?q=arrival&page=1` | None | `200` with `{ movies, total, page, pageSize }` |
 | POST | `/api/movies` | `{ "title": "Arrival", "notes": "Watch this weekend" }` | `201` with the created movie |
 | PATCH | `/api/movies/[id]` | `{ "watched": true }` | `200` with the updated movie |
 | DELETE | `/api/movies/[id]` | None | `204` with no body |
+
+GET defaults to an empty search and page 1. `page` must be an integer from 1 to
+1,000,000; invalid API parameters return 400. Pages past the end return the last
+available page (page 1 for no matches). `total` counts matching movies, and
+`pageSize` is always 5. The UI falls back to page 1 for malformed page URLs.
 
 Send `Content-Type: application/json` for POST and PATCH. Creation accepts only
 `title` and optional `notes`; PATCH accepts only `watched`. Database-generated
@@ -271,7 +291,8 @@ that first build needs network access.
 | `src/app/loading.test.tsx` | Accessible route loading fallback |
 | `tests/e2e/watchlist.spec.ts` | Browser CRUD flow, URL search, spinner rotation, reduced motion, accessibility, responsive layouts |
 
-Jest uses Node for API tests and jsdom for React Testing Library tests. Rollback
+Jest selects Node for `.test.ts` files and jsdom for `.test.tsx` files through
+two projects in `jest.config.mjs`; individual files need no environment comments. Rollback
 tests hold the reconciliation request open so a refetch cannot hide a broken
 rollback. The Jest and Playwright suites use mocked requests and do not modify
 Supabase data; the separate live verification scripts use temporary records.
@@ -289,7 +310,7 @@ traces go into the ignored `test-results/` folder. Browser tests cover desktop,
 tablet, narrow phones, long content, and axe accessibility checks. Automated axe
 checks do not replace manual keyboard and screen-reader review.
 
-Verified locally on 2026-10-16: **109 Jest tests and 10 browser tests passed**,
+Verified locally on 2026-10-16: **119 Jest tests and 14 browser tests passed**,
 along with lint, TypeScript checks, and the production build. Live database,
 REST API, and browser CRUD checks also passed, including persistence across
 reloads; their temporary records were removed. Responsive browser checks covered
