@@ -1,5 +1,3 @@
-/** @jest-environment jsdom */
-
 import { afterEach, expect, it } from "@jest/globals";
 import "@testing-library/jest-dom/jest-globals";
 import { cleanup, render, screen } from "@testing-library/react";
