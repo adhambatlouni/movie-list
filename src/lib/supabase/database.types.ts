@@ -9,7 +9,6 @@ export type Database = {
           title: string;
           notes: string | null;
           watched: boolean;
-          /** ISO 8601 timestamp returned by the database API. */
           created_at: string;
         };
         Insert: {

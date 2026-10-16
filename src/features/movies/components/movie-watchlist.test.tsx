@@ -1,5 +1,3 @@
-/** @jest-environment jsdom */
-
 import {
   afterEach,
   beforeEach,
@@ -24,7 +22,7 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import type { Movie } from "../types";
+import type { Movie, MoviePage } from "../types";
 
 jest.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
@@ -68,6 +66,12 @@ const perfectDays: Movie = {
   notes: null,
   created_at: "2026-10-15T13:00:00.000Z",
 };
+const pageOf = (movies: Movie[]): MoviePage => ({
+  movies,
+  total: movies.length,
+  page: 1,
+  pageSize: 5,
+});
 let client: QueryClient;
 
 const setup = () => {
@@ -96,7 +100,7 @@ const deferred = <T,>() => {
 };
 
 beforeEach(() => {
-  api.fetchMovies.mockReset().mockResolvedValue([arrival]);
+  api.fetchMovies.mockReset().mockResolvedValue(pageOf([arrival]));
   api.addMovie.mockReset();
   api.setMovieWatched.mockReset();
   api.removeMovie.mockReset();
@@ -110,12 +114,36 @@ afterEach(() => {
 });
 
 describe("MovieWatchlist", () => {
+  it("updates every cached occurrence and rolls them all back after a failed toggle", async () => {
+    const write = deferred<Movie>();
+    const read = deferred<MoviePage>();
+    api.setMovieWatched.mockReturnValue(write.promise);
+    const user = setup();
+    const toggle = await screen.findByRole("checkbox", {
+      name: "Watched: Arrival",
+    });
+    const filteredKey = ["movies", { q: "arr", page: 2 }];
+    const filteredPage = { ...pageOf([arrival]), total: 6, page: 2 };
+    client.setQueryData(filteredKey, filteredPage);
+    api.fetchMovies.mockReturnValue(read.promise);
+    await user.click(toggle);
+    expect(client.getQueryData<MoviePage>(filteredKey)?.movies[0].watched).toBe(
+      true,
+    );
+    await act(async () => write.reject(new Error("Write failed")));
+    await waitFor(() =>
+      expect(toggle).toHaveAttribute("aria-checked", "false"),
+    );
+    expect(client.getQueryData(filteredKey)).toEqual(filteredPage);
+    await act(async () => read.resolve(pageOf([arrival])));
+  });
+
   it("announces loading, then shows an empty state that focuses the add form", async () => {
-    const pending = deferred<Movie[]>();
+    const pending = deferred<MoviePage>();
     api.fetchMovies.mockReturnValue(pending.promise);
     const user = setup();
     expect(screen.getByRole("status")).toHaveTextContent("Loading movies");
-    await act(async () => pending.resolve([]));
+    await act(async () => pending.resolve(pageOf([])));
     await user.click(
       await screen.findByRole("button", { name: "Add your first movie" }),
     );
@@ -135,19 +163,21 @@ describe("MovieWatchlist", () => {
   });
 
   it("preserves the API's newest-first order and renders optional notes", async () => {
-    api.fetchMovies.mockResolvedValue([perfectDays, arrival]);
-    setup();
+    api.fetchMovies.mockResolvedValue(pageOf([perfectDays, arrival]));
+    const user = setup();
     const list = await screen.findByRole("list", { name: "Movies" });
     expect(
       within(list)
-        .getAllByRole("heading")
+        .getAllByRole("heading", { level: 3 })
         .map((heading) => heading.textContent),
     ).toEqual(["Perfect Days", "Arrival"]);
+    await user.click(screen.getByRole("button", { name: "Notes for Arrival" }));
     expect(within(list).getByText("For a quiet evening")).toBeVisible();
   });
 
   it("rejects a whitespace-only title and focuses the invalid field", async () => {
     const user = setup();
+    await user.click(screen.getByRole("button", { name: "Add movie" }));
     await user.type(
       screen.getByRole("textbox", { name: /Movie title/ }),
       "   ",
@@ -167,6 +197,7 @@ describe("MovieWatchlist", () => {
     const pending = deferred<Movie>();
     api.addMovie.mockReturnValue(pending.promise);
     const user = setup();
+    await user.click(screen.getByRole("button", { name: "Add movie" }));
     const title = screen.getByRole("textbox", { name: /Movie title/ });
     await user.type(title, "  Perfect Days  ");
     await user.type(screen.getByRole("textbox", { name: "Notes" }), "   ");
@@ -180,14 +211,16 @@ describe("MovieWatchlist", () => {
       screen.getByRole("button", { name: "Adding movie…" }),
     ).toBeDisabled();
     expect(title).toHaveValue("  Perfect Days  ");
-    api.fetchMovies.mockResolvedValue([perfectDays, arrival]);
+    api.fetchMovies.mockResolvedValue(pageOf([perfectDays, arrival]));
     await act(async () => pending.resolve(perfectDays));
     expect(
       await screen.findByRole("heading", { name: "Perfect Days" }),
     ).toBeVisible();
-    await waitFor(() => expect(title).toHaveValue(""));
-    expect(title).toHaveFocus();
-    expect(api.fetchMovies).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: "Add movie" })).toHaveFocus();
+    expect(api.fetchMovies).toHaveBeenCalledTimes(2);
   });
 
   it("keeps the user's inputs when adding fails", async () => {
@@ -195,6 +228,7 @@ describe("MovieWatchlist", () => {
       new api.MovieApiError("Couldn't save the movie."),
     );
     const user = setup();
+    await user.click(screen.getByRole("button", { name: "Add movie" }));
     await user.type(
       screen.getByRole("textbox", { name: /Movie title/ }),
       "Perfect Days",
@@ -225,6 +259,7 @@ describe("MovieWatchlist", () => {
       ]),
     );
     const user = setup();
+    await user.click(screen.getByRole("button", { name: "Add movie" }));
     await user.type(
       screen.getByRole("textbox", { name: /Movie title/ }),
       "Perfect Days",
@@ -241,44 +276,42 @@ describe("MovieWatchlist", () => {
     const pending = deferred<Movie>();
     api.setMovieWatched.mockReturnValue(pending.promise);
     const user = setup();
-    const toggle = await screen.findByRole("button", {
+    const toggle = await screen.findByRole("checkbox", {
       name: "Watched: Arrival",
     });
     await user.click(toggle);
-    await waitFor(() => expect(toggle).toHaveAttribute("aria-pressed", "true"));
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
     expect(toggle).toBeDisabled();
     expect(
       screen.getByRole("button", { name: "Delete Arrival" }),
     ).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Add to watchlist" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add movie" })).toBeDisabled();
     await act(async () =>
       pending.reject(new api.MovieApiError("Couldn't save watched status.")),
     );
     await waitFor(() => expect(toggle).toBeEnabled());
     expect(toast.error).toHaveBeenCalledWith("Couldn't save watched status.");
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveAttribute("aria-checked", "false");
     expect(api.fetchMovies).toHaveBeenCalledTimes(2);
   });
 
   it("supports marking a movie watched and unwatched", async () => {
     let saved = arrival;
-    api.fetchMovies.mockImplementation(async () => [saved]);
+    api.fetchMovies.mockImplementation(async () => pageOf([saved]));
     api.setMovieWatched.mockImplementation(async (_id, input) => {
       saved = { ...saved, ...input };
       return saved;
     });
     const user = setup();
-    const toggle = await screen.findByRole("button", {
+    const toggle = await screen.findByRole("checkbox", {
       name: "Watched: Arrival",
     });
     await user.click(toggle);
     await waitFor(() => expect(toggle).toBeEnabled());
-    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(toggle).toHaveAttribute("aria-checked", "true");
     await user.click(toggle);
     await waitFor(() => expect(toggle).toBeEnabled());
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveAttribute("aria-checked", "false");
     expect(api.setMovieWatched).toHaveBeenLastCalledWith(arrival.id, {
       watched: false,
     });
@@ -319,7 +352,7 @@ describe("MovieWatchlist", () => {
       ).not.toBeInTheDocument(),
     );
     expect(screen.getByRole("button", { name: "Deleting…" })).toBeDisabled();
-    api.fetchMovies.mockResolvedValue([]);
+    api.fetchMovies.mockResolvedValue(pageOf([]));
     await act(async () => pending.resolve());
     await waitFor(() =>
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
@@ -330,16 +363,17 @@ describe("MovieWatchlist", () => {
     expect(
       screen.getByRole("button", { name: "Add your first movie" }),
     ).toBeVisible();
-    expect(api.fetchMovies).toHaveBeenCalledTimes(1);
+    expect(api.fetchMovies).toHaveBeenCalledTimes(2);
   });
 
   it("fetches the complete collection when adding before any successful list load", async () => {
     api.fetchMovies
       .mockRejectedValueOnce(new Error("Unavailable"))
-      .mockResolvedValue([perfectDays, arrival]);
+      .mockResolvedValue(pageOf([perfectDays, arrival]));
     api.addMovie.mockResolvedValue(perfectDays);
     const user = setup();
     await screen.findByRole("alert");
+    await user.click(screen.getByRole("button", { name: "Add movie" }));
     await user.type(
       screen.getByRole("textbox", { name: /Movie title/ }),
       "Perfect Days",
@@ -354,10 +388,10 @@ describe("MovieWatchlist", () => {
 
   it("cancels an outdated list request and uses the server's saved movie without another GET", async () => {
     const user = setup();
-    const toggle = await screen.findByRole("button", {
+    const toggle = await screen.findByRole("checkbox", {
       name: "Watched: Arrival",
     });
-    const oldRead = deferred<Movie[]>();
+    const oldRead = deferred<MoviePage>();
     const save = deferred<Movie>();
     api.fetchMovies.mockReturnValueOnce(oldRead.promise);
     api.setMovieWatched.mockReturnValue(save.promise);
@@ -366,21 +400,22 @@ describe("MovieWatchlist", () => {
       refresh = client.invalidateQueries({ queryKey: ["movies"] });
     });
     await waitFor(() => expect(api.fetchMovies).toHaveBeenCalledTimes(2));
-    const signal = api.fetchMovies.mock.calls[1][0];
+    const signal = api.fetchMovies.mock.calls[1][1];
     await user.click(toggle);
-    await waitFor(() => expect(toggle).toHaveAttribute("aria-pressed", "true"));
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
     expect(signal?.aborted).toBe(true);
     await act(async () => {
-      oldRead.resolve([arrival]);
+      oldRead.resolve(pageOf([arrival]));
       await refresh;
     });
-    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(toggle).toHaveAttribute("aria-checked", "true");
     // The response is authoritative even when it differs from our prediction.
     await act(async () =>
       save.resolve({ ...arrival, notes: "Confirmed by server" }),
     );
     await waitFor(() => expect(toggle).toBeEnabled());
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+    await user.click(screen.getByRole("button", { name: "Notes for Arrival" }));
     expect(screen.getByText("Confirmed by server")).toBeVisible();
     expect(api.fetchMovies).toHaveBeenCalledTimes(2);
   });
@@ -389,11 +424,11 @@ describe("MovieWatchlist", () => {
     const pending = deferred<Movie>();
     api.setMovieWatched.mockReturnValue(pending.promise);
     const user = setup();
-    const toggle = await screen.findByRole("button", {
+    const toggle = await screen.findByRole("checkbox", {
       name: "Watched: Arrival",
     });
     await user.click(toggle);
-    await waitFor(() => expect(toggle).toHaveAttribute("aria-pressed", "true"));
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
     await act(async () => {
       focusManager.setFocused(false);
       focusManager.setFocused(true);
@@ -402,7 +437,7 @@ describe("MovieWatchlist", () => {
     });
     expect(api.fetchMovies).toHaveBeenCalledTimes(1);
     const saved = { ...arrival, watched: true };
-    api.fetchMovies.mockResolvedValue([saved]);
+    api.fetchMovies.mockResolvedValue(pageOf([saved]));
     await act(async () => pending.resolve(saved));
     await waitFor(() => expect(toggle).toBeEnabled());
     await act(async () => {
@@ -428,7 +463,7 @@ describe("MovieWatchlist", () => {
       screen.getByRole("heading", { name: "Arrival", hidden: true }),
     ).toBeInTheDocument();
     api.removeMovie.mockResolvedValue(undefined);
-    api.fetchMovies.mockResolvedValue([]);
+    api.fetchMovies.mockResolvedValue(pageOf([]));
     await user.click(screen.getByRole("button", { name: "Delete movie" }));
     await waitFor(() =>
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
@@ -458,6 +493,7 @@ describe("MovieWatchlist", () => {
       .mockRejectedValueOnce(new api.MovieApiError("Save failed."))
       .mockResolvedValue(perfectDays);
     const user = setup();
+    await user.click(screen.getByRole("button", { name: "Add movie" }));
     await user.type(
       screen.getByRole("textbox", { name: /Movie title/ }),
       "  Perfect Days  ",
@@ -471,11 +507,8 @@ describe("MovieWatchlist", () => {
     await user.click(screen.getByRole("textbox", { name: /Movie title/ }));
     await user.keyboard("{Enter}");
     await waitFor(() =>
-      expect(screen.getByRole("textbox", { name: /Movie title/ })).toHaveValue(
-        "",
-      ),
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
-    expect(screen.getByRole("textbox", { name: "Notes" })).toHaveValue("");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(api.addMovie.mock.calls[1][0]).toEqual({
       title: "Perfect Days",
@@ -485,31 +518,31 @@ describe("MovieWatchlist", () => {
 
   it("rolls back watched status before reconciliation completes, even if that read also fails", async () => {
     const save = deferred<Movie>();
-    const refresh = deferred<Movie[]>();
+    const refresh = deferred<MoviePage>();
     api.setMovieWatched.mockReturnValue(save.promise);
     const user = setup();
-    const toggle = await screen.findByRole("button", {
+    const toggle = await screen.findByRole("checkbox", {
       name: "Watched: Arrival",
     });
     api.fetchMovies.mockReturnValueOnce(refresh.promise);
     await user.click(toggle);
-    await waitFor(() => expect(toggle).toHaveAttribute("aria-pressed", "true"));
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
     await act(async () => save.reject(new api.MovieApiError("Save failed.")));
     await waitFor(() => expect(api.fetchMovies).toHaveBeenCalledTimes(2));
     // The pending GET cannot supply the original value: rollback must restore it.
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveAttribute("aria-checked", "false");
     expect(toggle).toBeDisabled();
     await act(async () => refresh.reject(new Error("Still offline")));
     await waitFor(() => expect(toggle).toBeEnabled());
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveAttribute("aria-checked", "false");
     expect(toast.error).toHaveBeenCalledWith("Save failed.");
     expect(screen.getByText(/Showing the last loaded movies/)).toBeVisible();
   });
 
   it("restores a deleted movie in its original position before reconciliation returns", async () => {
-    api.fetchMovies.mockResolvedValue([perfectDays, arrival]);
+    api.fetchMovies.mockResolvedValue(pageOf([perfectDays, arrival]));
     const save = deferred<void>();
-    const refresh = deferred<Movie[]>();
+    const refresh = deferred<MoviePage>();
     api.removeMovie.mockReturnValue(save.promise);
     const user = setup();
     await user.click(
@@ -527,13 +560,13 @@ describe("MovieWatchlist", () => {
     const list = screen.getByRole("list", { hidden: true });
     expect(
       within(list)
-        .getAllByRole("heading", { hidden: true })
+        .getAllByRole("heading", { hidden: true, level: 3 })
         .map((heading) => heading.textContent),
     ).toEqual(["Perfect Days", "Arrival"]);
     expect(screen.getByRole("button", { name: "Deleting…" })).toBeDisabled();
     // A lost response can mean the delete actually succeeded. A fresh server
     // result should then replace the rolled-back snapshot.
-    await act(async () => refresh.resolve([arrival]));
+    await act(async () => refresh.resolve(pageOf([arrival])));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Delete failed.",
     );

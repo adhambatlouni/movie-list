@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import type { Movie } from "../src/features/movies/types";
+import type { Movie, MoviePage } from "../src/features/movies/types";
 
 const port = Number(process.argv[2] ?? 3000);
 assert.ok(
@@ -9,7 +9,14 @@ assert.ok(
 );
 const baseUrl = `http://127.0.0.1:${port}/api/movies`;
 const tag = `[API check] ${randomUUID()}`;
-const titles = [`${tag} first`, `${tag} second`];
+const titles = [
+  `${tag} first`,
+  `${tag} second`,
+  ...Array.from(
+    { length: 6 },
+    (_, index) => `${tag} extra ${index} .*_[x]%$\\(literal)`,
+  ),
+];
 
 const call = async (path = "", method = "GET", body?: unknown) => {
   return fetch(`${baseUrl}${path}`, {
@@ -21,14 +28,18 @@ const call = async (path = "", method = "GET", body?: unknown) => {
   });
 };
 
-const list = async (): Promise<Movie[]> => {
-  const response = await call();
+const listPage = async (q = tag, page = 1): Promise<MoviePage> => {
+  const response = await call(
+    `?${new URLSearchParams({ q, page: String(page) })}`,
+  );
   assert.equal(response.status, 200, "Listing movies failed.");
   assert.equal(response.headers.get("cache-control"), "no-store");
-  const movies: Movie[] = await response.json();
-  assert.ok(Array.isArray(movies), "GET must return an array.");
-  return movies;
+  const result: MoviePage = await response.json();
+  assert.ok(Array.isArray(result.movies), "GET must return a movies array.");
+  assert.equal(result.pageSize, 5);
+  return result;
 };
+const list = async () => (await listPage()).movies;
 
 const checkApi = async () => {
   console.log(`Checking movie endpoints on local port ${port}...`);
@@ -90,19 +101,49 @@ const checkApi = async () => {
       "Deletion did not persist.",
     );
     assert.equal((await call(`/${first.id}`, "DELETE")).status, 404);
+
+    for (const title of titles.slice(2)) {
+      assert.equal((await call("", "POST", { title })).status, 201);
+    }
+    const firstPage = await listPage(tag.toUpperCase());
+    const secondPage = await listPage(tag, 2);
+    assert.equal(firstPage.total, 7);
+    assert.equal(firstPage.movies.length, 5);
+    assert.equal(secondPage.movies.length, 2);
+    assert.equal(
+      new Set(
+        [...firstPage.movies, ...secondPage.movies].map((movie) => movie.id),
+      ).size,
+      7,
+    );
+    assert.deepEqual(
+      await listPage(tag, 999),
+      secondPage,
+      "Out-of-range pages must clamp to the last page.",
+    );
+    const literal = await listPage(titles[2]);
+    assert.equal(literal.total, 1, "Search punctuation must be literal.");
+    assert.equal(literal.movies[0].title, titles[2]);
+    assert.equal((await listPage(`${tag} absent`)).total, 0);
+    assert.equal((await call("?page=0")).status, 400);
     passed = true;
   } finally {
     // Find only this run's uniquely named records, even if a POST response was
     // lost after its insert. Never delete the user's other movies.
     try {
-      const remaining = (await list()).filter((movie) =>
+      let remaining = (await list()).filter((movie) =>
         titles.includes(movie.title),
       );
-      for (const movie of remaining) {
-        assert.equal(
-          (await call(`/${movie.id}`, "DELETE")).status,
-          204,
-          "Cleanup failed.",
+      while (remaining.length) {
+        for (const movie of remaining) {
+          assert.equal(
+            (await call(`/${movie.id}`, "DELETE")).status,
+            204,
+            "Cleanup failed.",
+          );
+        }
+        remaining = (await list()).filter((movie) =>
+          titles.includes(movie.title),
         );
       }
       assert.ok(
@@ -118,7 +159,7 @@ const checkApi = async () => {
   }
 
   console.log(
-    "PASS: creation, newest-first listing, persisted watched/unwatched updates, deletion, validation, 404, and 405. Test movies removed.",
+    "PASS: CRUD persistence, newest-first ordering, server search, literal punctuation, five-row pages, page bounds, validation, 404, and 405. Test movies removed.",
   );
 };
 
