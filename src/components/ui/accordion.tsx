@@ -24,7 +24,7 @@ export const AccordionTrigger = ({
         {children}
         <ChevronDown
           aria-hidden="true"
-          className="size-5 shrink-0 transition-transform"
+          className="size-5 shrink-0 transition-transform duration-250 ease-in-out"
         />
       </AccordionPrimitive.Trigger>
     </h4>
@@ -32,13 +32,15 @@ export const AccordionTrigger = ({
 );
 export const AccordionContent = ({
   className,
+  children,
   ...props
 }: ComponentProps<typeof AccordionPrimitive.Content>) => (
   <AccordionPrimitive.Content
-    className={cn(
-      "pb-2 text-sm leading-6 text-muted-foreground whitespace-pre-wrap wrap-anywhere",
-      className,
-    )}
+    className="overflow-hidden text-sm leading-6 text-muted-foreground duration-250 ease-in-out data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up"
     {...props}
-  />
+  >
+    <div className={cn("pb-2 whitespace-pre-wrap wrap-anywhere", className)}>
+      {children}
+    </div>
+  </AccordionPrimitive.Content>
 );

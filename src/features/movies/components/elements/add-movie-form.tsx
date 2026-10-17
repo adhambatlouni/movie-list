@@ -60,10 +60,10 @@ export const AddMovieForm = ({ onAdd }: Props) => {
       onSubmit={form.handleSubmit(submit)}
       noValidate
       aria-busy={isSubmitting}
-      className="space-y-4"
+      className="grid gap-5"
     >
-      <div className="space-y-2">
-        <Label htmlFor="movie-title">
+      <div className="grid gap-2">
+        <Label htmlFor="movie-title" className="leading-5">
           Movie title{" "}
           <span aria-hidden="true" className="text-primary">
             *
@@ -80,14 +80,14 @@ export const AddMovieForm = ({ onAdd }: Props) => {
           {...form.register("title")}
         />
         {errors.title && (
-          <p id="title-error" role="alert" className="text-sm text-destructive">
+          <p id="title-error" role="alert" className="text-sm text-destructive wrap-anywhere">
             {errors.title.message}
           </p>
         )}
       </div>
-      <div className="space-y-2">
+      <div className="grid gap-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="movie-notes">Notes</Label>
+          <Label htmlFor="movie-notes" className="leading-5">Notes</Label>
           <span id="notes-hint" className="text-xs text-muted-foreground">
             Optional
           </span>
@@ -102,7 +102,7 @@ export const AddMovieForm = ({ onAdd }: Props) => {
           {...form.register("notes")}
         />
         {errors.notes && (
-          <p id="notes-error" role="alert" className="text-sm text-destructive">
+          <p id="notes-error" role="alert" className="text-sm text-destructive wrap-anywhere">
             {errors.notes.message}
           </p>
         )}
@@ -110,7 +110,7 @@ export const AddMovieForm = ({ onAdd }: Props) => {
       {errors.root && (
         <p
           role="alert"
-          className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive"
+          className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive wrap-anywhere"
         >
           {errors.root.message}
         </p>

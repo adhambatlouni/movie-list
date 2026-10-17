@@ -36,7 +36,7 @@ export const MovieItem = ({
     <li>
       <Accordion type="single" collapsible>
         <AccordionItem value="notes">
-          <div className="flex min-h-20 items-center gap-2 px-3 py-3 sm:gap-3 sm:px-5">
+          <div className="flex min-h-20 items-start gap-2 px-3 py-4 sm:gap-3 sm:px-5">
             <Label
               htmlFor={checkboxId}
               aria-busy={saving}

@@ -65,7 +65,6 @@ export const DeleteMovieDialog = ({
       }}
     >
       <AlertDialogContent
-        className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] grid-cols-1 overflow-y-auto rounded-2xl border-border bg-card sm:rounded-2xl"
         onEscapeKeyDown={(event) => {
           if (submitting.current) event.preventDefault();
         }}
@@ -88,7 +87,7 @@ export const DeleteMovieDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive wrap-anywhere">
             {error}
           </p>
         )}

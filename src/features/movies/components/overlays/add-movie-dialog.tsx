@@ -59,7 +59,7 @@ export const AddMovieDialog = ({
         }}
       >
         <div className="flex items-start justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <DialogTitle className="text-xl font-semibold">
               Add a movie
             </DialogTitle>
@@ -71,6 +71,7 @@ export const AddMovieDialog = ({
             type="button"
             variant="ghost"
             size="icon"
+            className="shrink-0"
             disabled={pending}
             aria-label="Close add movie"
             onClick={() => {
