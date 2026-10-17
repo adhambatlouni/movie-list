@@ -142,15 +142,22 @@ test("desktop: add, reload, toggle both ways, confirm delete, and keyboard focus
     name: "Watched: In the Mood for Love",
     exact: true,
   });
+  const movieRow = page
+    .getByRole("list", { name: "Movies" })
+    .getByRole("listitem")
+    .filter({ has: toggle });
+  await expect(movieRow.getByText("To watch", { exact: true })).toBeVisible();
   await toggle.focus();
   await toggle.press("Space");
   await expect(toggle).toHaveAttribute("aria-checked", "true");
   await expect(toggle).toBeEnabled();
+  await expect(movieRow.getByText("Watched", { exact: true })).toBeVisible();
   await page.reload();
   await expect(toggle).toHaveAttribute("aria-checked", "true");
   await toggle.click();
   await expect(toggle).toBeEnabled();
   await expect(toggle).toHaveAttribute("aria-checked", "false");
+  await expect(movieRow.getByText("To watch", { exact: true })).toBeVisible();
   await page
     .getByRole("button", { name: "Delete In the Mood for Love", exact: true })
     .click();
@@ -425,17 +432,19 @@ for (const width of [320, 768, 1440]) {
     });
     try {
       await page.goto("/");
+      // The route fallback can coexist with streamed content during hydration.
+      const collection = page.getByRole("region", { name: "Your collection" });
+      const loadingMovies = collection.getByRole("status", {
+        name: "Loading movies",
+      });
+      await expect(collection).toBeVisible();
+      await expect(loadingMovies).toBeVisible();
       await expect(
-        page.getByRole("status", { name: "Loading movies" }),
+        collection.locator('[data-slot="pagination-skeleton"]'),
       ).toBeVisible();
-      await expect(
-        page.locator('[data-slot="pagination-skeleton"]'),
-      ).toBeVisible();
-      const loadingTop = (await page
-        .getByRole("status", { name: "Loading movies" })
-        .boundingBox())!.y;
+      const loadingTop = (await loadingMovies.boundingBox())!.y;
       expect(
-        await page.locator('[data-slot="skeleton"]').count(),
+        await collection.locator('[data-slot="skeleton"]').count(),
       ).toBeGreaterThan(0);
       expect(
         await page.evaluate(

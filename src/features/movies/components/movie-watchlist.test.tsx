@@ -306,10 +306,10 @@ describe("MovieWatchlist", () => {
     const toggle = await screen.findByRole("checkbox", {
       name: "Watched: Arrival",
     });
-    await user.click(toggle);
+    await user.click(screen.getByText("To watch", { exact: true }));
     await waitFor(() => expect(toggle).toBeEnabled());
     expect(toggle).toHaveAttribute("aria-checked", "true");
-    await user.click(toggle);
+    await user.click(screen.getByText("Watched", { exact: true }));
     await waitFor(() => expect(toggle).toBeEnabled());
     expect(toggle).toHaveAttribute("aria-checked", "false");
     expect(api.setMovieWatched).toHaveBeenLastCalledWith(arrival.id, {
