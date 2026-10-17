@@ -367,14 +367,15 @@ reloads; their temporary records were removed. Responsive browser checks covered
 ## Continuous integration
 
 [GitHub Actions](https://docs.github.com/en/actions/tutorials/build-and-test-code/nodejs)
-runs `.github/workflows/ci.yml` on pushes and pull requests, or manually from
-the Actions tab. It installs the lockfile dependencies on Node.js 22, runs lint,
+runs `.github/workflows/ci.yml` on pull requests and pushes to `main`, or manually
+from the Actions tab. Feature branch pushes are checked through their pull request,
+avoiding duplicate CI runs. It installs the lockfile dependencies on Node.js 22, runs lint,
 TypeScript and Jest checks, builds the app, and runs Chromium browser tests.
 The suites mock database requests, so no Supabase secrets are needed in CI.
 
 Continuous deployment is intentionally deferred until a hosting target and
-production access controls are configured. Pushing this repository runs checks;
-it does not deploy the application.
+production access controls are configured. CI verifies the application;
+it does not deploy it.
 
 ## Security
 
