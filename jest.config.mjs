@@ -8,6 +8,7 @@ const project = (testEnvironment, extension) =>
     testMatch: [`<rootDir>/src/**/*.test.${extension}`],
     clearMocks: true,
     restoreMocks: true,
+    modulePathIgnorePatterns: ["<rootDir>/.next/"],
     moduleNameMapper: { "^@/(.*)$": "<rootDir>/src/$1" },
   });
 
