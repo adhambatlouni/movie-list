@@ -193,7 +193,7 @@ describe("MovieWatchlist", () => {
     expect(api.addMovie).not.toHaveBeenCalled();
   });
 
-  it("sends normalized form values, prevents duplicate submissions, and clears only after success", async () => {
+  it("sends normalized values, prevents duplicate submissions, and reopens with a fresh form", async () => {
     const pending = deferred<Movie>();
     api.addMovie.mockReturnValue(pending.promise);
     const user = setup();
@@ -221,6 +221,12 @@ describe("MovieWatchlist", () => {
     );
     expect(screen.getByRole("button", { name: "Add movie" })).toHaveFocus();
     expect(api.fetchMovies).toHaveBeenCalledTimes(2);
+    await user.click(screen.getByRole("button", { name: "Add movie" }));
+    expect(screen.getByRole("textbox", { name: /Movie title/ })).toHaveValue(
+      "",
+    );
+    expect(screen.getByRole("textbox", { name: "Notes" })).toHaveValue("");
+    expect(screen.getByRole("textbox", { name: /Movie title/ })).toHaveFocus();
   });
 
   it("keeps the user's inputs when adding fails", async () => {

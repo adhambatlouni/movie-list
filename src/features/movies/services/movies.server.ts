@@ -1,12 +1,13 @@
 import "server-only";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type {
-  CreateMovieInput,
-  UpdateMovieInput,
+import {
+  MOVIES_PAGE_SIZE,
+  type MovieListInput,
+  type CreateMovieInput,
+  type UpdateMovieInput,
 } from "../schemas/movie.schema";
 import type { Movie, MoviePage } from "../types";
-import { MOVIES_PAGE_SIZE, type MovieListInput } from "../schemas/movie.schema";
 
 const columns = "id, title, notes, watched, created_at";
 

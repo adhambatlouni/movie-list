@@ -1,13 +1,5 @@
-import { Suspense } from "react";
-import Loading from "./loading";
 import { MovieWatchlist } from "@/features/movies/components/movie-watchlist";
 
-const Home = () => {
-  return (
-    <Suspense fallback={<Loading />}>
-      <MovieWatchlist />
-    </Suspense>
-  );
-};
+const Home = () => <MovieWatchlist />;
 
 export default Home;

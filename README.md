@@ -96,6 +96,50 @@ then delete and refresh again.
 | Permission denied / `42501` | Check the migration's grants and that the server uses the secret key. |
 | Connection failure | Check the URL, network connection, and whether the Supabase project is paused. |
 
+## Run with Docker
+
+Docker is an optional way to run the production application. For everyday
+development, continue using `npm run dev`. Install Docker Desktop and start its
+Linux container engine, then run these commands beside `package.json`:
+
+```sh
+docker build -t movie-watchlist .
+docker run --rm --name movie-watchlist --env-file .env.local -p 127.0.0.1:3000:3000 movie-watchlist
+```
+
+Open http://localhost:3000. Stop the container with Ctrl+C, or run
+`docker stop movie-watchlist` from another terminal. If port 3000 is already in
+use, publish `127.0.0.1:3001:3000` instead and open http://localhost:3001.
+
+Configure Supabase and apply the migration as described above first. In
+`.env.local`, use plain `NAME=value` lines without surrounding quotes. Docker's
+env-file parser does not perform Next.js-style variable expansion. Recreate the
+container after changing credentials. Movie data stays in hosted Supabase, so
+removing the container does not remove the watchlist.
+
+The Dockerfile uses two stages: the builder installs locked dependencies and
+builds Next.js; the runtime copies only standalone output and static assets and
+runs as the non-root `node` user. `.dockerignore` keeps local dependencies, build
+output, Git history, and environment files out of the build context. Supabase
+credentials are supplied only when starting the container, not when building it.
+The build needs internet access for npm packages, the base image, and Geist fonts.
+
+The container listens on `0.0.0.0` internally so port forwarding works; the run
+command publishes the port only on your computer's loopback interface. This
+does not deploy the app or replace the production access controls in Security.
+Compose is unnecessary here because only the app runs in a container.
+
+To verify real database operations through the running container:
+
+```sh
+npm run api:check
+# If you published port 3001 instead:
+npm run api:check -- 3001
+```
+
+These checks use temporary records and require Node locally. Rebuild the image
+after source changes. Tests continue to run through the existing npm/CI commands.
+
 ## Architecture
 
 ```text
@@ -204,7 +248,8 @@ failures stay next to their controls so users can correct or retry them.
 
 ### Loading, accessibility, and styling
 
-`app/loading.tsx` handles the Next.js route Suspense boundary. Client-side database
+Next.js automatically wraps the page in the Suspense boundary supplied by
+`app/loading.tsx`; the page does not add a second boundary. Client-side database
 fetching has its own pending state using the same shadcn list skeleton; route
 loading alone cannot cover TanStack Query requests. Fast route loads may skip the
 route fallback, and no artificial delays are added to the application.
@@ -322,14 +367,15 @@ reloads; their temporary records were removed. Responsive browser checks covered
 ## Continuous integration
 
 [GitHub Actions](https://docs.github.com/en/actions/tutorials/build-and-test-code/nodejs)
-runs `.github/workflows/ci.yml` on pushes and pull requests, or manually from
-the Actions tab. It installs the lockfile dependencies on Node.js 22, runs lint,
+runs `.github/workflows/ci.yml` on pull requests and pushes to `main`, or manually
+from the Actions tab. Feature branch pushes are checked through their pull request,
+avoiding duplicate CI runs. It installs the lockfile dependencies on Node.js 22, runs lint,
 TypeScript and Jest checks, builds the app, and runs Chromium browser tests.
 The suites mock database requests, so no Supabase secrets are needed in CI.
 
 Continuous deployment is intentionally deferred until a hosting target and
-production access controls are configured. Pushing this repository runs checks;
-it does not deploy the application.
+production access controls are configured. CI verifies the application;
+it does not deploy it.
 
 ## Security
 

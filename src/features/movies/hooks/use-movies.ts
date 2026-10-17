@@ -9,7 +9,7 @@ import {
 } from "../services/movies-api";
 import type { Movie, MoviePage } from "../types";
 
-export const moviesQueryKey = ["movies"] as const;
+const moviesQueryKey = ["movies"] as const;
 
 export const useMovies = (q: string, page: number) => {
   const client = useQueryClient();
@@ -34,14 +34,14 @@ export const useMovies = (q: string, page: number) => {
   ) => {
     context?.previous.forEach(([key, data]) => client.setQueryData(key, data));
   };
-  const replaceMovie = (saved: Movie) =>
+  const updateCachedMovie = (id: string, changes: Partial<Movie>) =>
     client.setQueriesData<MoviePage>(
       { queryKey: moviesQueryKey },
       (data) =>
         data && {
           ...data,
           movies: data.movies.map((movie) =>
-            movie.id === saved.id ? saved : movie,
+            movie.id === id ? { ...movie, ...changes } : movie,
           ),
         },
     );
@@ -73,20 +73,11 @@ export const useMovies = (q: string, page: number) => {
       setMovieWatched(id, { watched }),
     onMutate: async ({ id, watched }) => {
       const context = await snapshot();
-      client.setQueriesData<MoviePage>(
-        { queryKey: moviesQueryKey },
-        (data) =>
-          data && {
-            ...data,
-            movies: data.movies.map((movie) =>
-              movie.id === id ? { ...movie, watched } : movie,
-            ),
-          },
-      );
+      updateCachedMovie(id, { watched });
       return context;
     },
     onError: rollback,
-    onSuccess: replaceMovie,
+    onSuccess: (saved) => updateCachedMovie(saved.id, saved),
     onSettled: (_data, error) => {
       if (error) return refresh();
     },

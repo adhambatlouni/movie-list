@@ -80,7 +80,7 @@ export const AddMovieDialog = ({
             <X aria-hidden="true" />
           </Button>
         </div>
-        <AddMovieForm onAdd={submit} disabled={pending} />
+        <AddMovieForm onAdd={submit} />
       </DialogContent>
     </Dialog>
   );
