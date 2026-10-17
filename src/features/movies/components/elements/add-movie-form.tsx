@@ -17,10 +17,9 @@ import { MovieApiError } from "../../services/movies-api";
 
 type Props = {
   onAdd: (input: CreateMovieInput) => Promise<void>;
-  disabled: boolean;
 };
 
-export const AddMovieForm = ({ onAdd, disabled }: Props) => {
+export const AddMovieForm = ({ onAdd }: Props) => {
   const form = useForm<
     z.input<typeof createMovieSchema>,
     unknown,
@@ -35,8 +34,6 @@ export const AddMovieForm = ({ onAdd, disabled }: Props) => {
     form.clearErrors("root");
     try {
       await onAdd(input);
-      form.setFocus("title");
-      form.reset();
     } catch (error) {
       if (error instanceof MovieApiError) {
         for (const issue of error.issues) {
@@ -79,7 +76,7 @@ export const AddMovieForm = ({ onAdd, disabled }: Props) => {
           aria-required="true"
           aria-invalid={Boolean(errors.title)}
           aria-describedby={errors.title ? "title-error" : undefined}
-          readOnly={disabled || isSubmitting}
+          readOnly={isSubmitting}
           {...form.register("title")}
         />
         {errors.title && (
@@ -101,7 +98,7 @@ export const AddMovieForm = ({ onAdd, disabled }: Props) => {
           placeholder="Add a note (optional)"
           aria-invalid={Boolean(errors.notes)}
           aria-describedby={`notes-hint${errors.notes ? " notes-error" : ""}`}
-          readOnly={disabled || isSubmitting}
+          readOnly={isSubmitting}
           {...form.register("notes")}
         />
         {errors.notes && (
@@ -121,7 +118,7 @@ export const AddMovieForm = ({ onAdd, disabled }: Props) => {
       <Button
         type="submit"
         size="lg"
-        disabled={disabled || isSubmitting}
+        disabled={isSubmitting}
         aria-busy={isSubmitting}
         className="w-full"
       >
