@@ -367,11 +367,18 @@ reloads; their temporary records were removed. Responsive browser checks covered
 ## Continuous integration
 
 [GitHub Actions](https://docs.github.com/en/actions/tutorials/build-and-test-code/nodejs)
-runs `.github/workflows/ci.yml` on pull requests and pushes to `main`, or manually
+runs `.github/workflows/ci.yml` on pull requests targeting `main` and pushes to `main`, or manually
 from the Actions tab. Feature branch pushes are checked through their pull request,
 avoiding duplicate CI runs. It installs the lockfile dependencies on Node.js 22, runs lint,
 TypeScript and Jest checks, builds the app, and runs Chromium browser tests.
 The suites mock database requests, so no Supabase secrets are needed in CI.
+
+New commits cancel outdated runs for the same branch or pull request. CI rejects
+Playwright `test.only` calls so an accidentally focused test cannot skip the rest
+of the browser suite. The workflow saves the HTML browser report and any failure
+screenshots and traces for seven days, including when tests fail. Download the
+`playwright-report` artifact from the Actions run, extract it, and open it with
+`npx playwright show-report <extracted-folder>/playwright-report`.
 
 Continuous deployment is intentionally deferred until a hosting target and
 production access controls are configured. CI verifies the application;
