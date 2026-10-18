@@ -123,14 +123,14 @@ describe("movie browser API client", () => {
     );
 
     await expect(fetchMovies({ q: "", page: 1 })).rejects.toEqual(
-      new MovieApiError("Couldn’t save your change. Please try again."),
+      new MovieApiError("Couldn't save your change. Please try again."),
     );
   });
 
   it("rejects an unreadable successful response", async () => {
     fetchMock.mockResolvedValue(new Response("not JSON", { status: 200 }));
     await expect(fetchMovies({ q: "", page: 1 })).rejects.toThrow(
-      "Couldn’t read the response. Please try again.",
+      "Couldn't read the response. Please try again.",
     );
   });
 });
