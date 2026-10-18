@@ -43,20 +43,20 @@ export const fetchMovies = async (
     }
 
     throw new MovieApiError(
-      "Couldn’t connect. Check your connection and try again.",
+      "Couldn't connect. Check your connection and try again.",
     );
   }
 
   const body = await response.json().catch(() => null);
   if (!response.ok) {
     throw new MovieApiError(
-      body?.error?.message ?? "Couldn’t save your change. Please try again.",
+      body?.error?.message ?? "Couldn't save your change. Please try again.",
       Array.isArray(body?.error?.issues) ? body.error.issues : [],
     );
   }
 
   if (body === null) {
-    throw new MovieApiError("Couldn’t read the response. Please try again.");
+    throw new MovieApiError("Couldn't read the response. Please try again.");
   }
 
   return body as MoviePage;
@@ -82,20 +82,20 @@ export const addMovie = async (input: CreateMovieInput): Promise<Movie> => {
     }
 
     throw new MovieApiError(
-      "Couldn’t connect. Check your connection and try again.",
+      "Couldn't connect. Check your connection and try again.",
     );
   }
 
   const body = await response.json().catch(() => null);
   if (!response.ok) {
     throw new MovieApiError(
-      body?.error?.message ?? "Couldn’t save your change. Please try again.",
+      body?.error?.message ?? "Couldn't save your change. Please try again.",
       Array.isArray(body?.error?.issues) ? body.error.issues : [],
     );
   }
 
   if (body === null) {
-    throw new MovieApiError("Couldn’t read the response. Please try again.");
+    throw new MovieApiError("Couldn't read the response. Please try again.");
   }
 
   return body as Movie;
@@ -124,20 +124,20 @@ export const setMovieWatched = async (
     }
 
     throw new MovieApiError(
-      "Couldn’t connect. Check your connection and try again.",
+      "Couldn't connect. Check your connection and try again.",
     );
   }
 
   const body = await response.json().catch(() => null);
   if (!response.ok) {
     throw new MovieApiError(
-      body?.error?.message ?? "Couldn’t save your change. Please try again.",
+      body?.error?.message ?? "Couldn't save your change. Please try again.",
       Array.isArray(body?.error?.issues) ? body.error.issues : [],
     );
   }
 
   if (body === null) {
-    throw new MovieApiError("Couldn’t read the response. Please try again.");
+    throw new MovieApiError("Couldn't read the response. Please try again.");
   }
 
   return body as Movie;
@@ -161,7 +161,7 @@ export const removeMovie = async (id: string): Promise<void> => {
     }
 
     throw new MovieApiError(
-      "Couldn’t connect. Check your connection and try again.",
+      "Couldn't connect. Check your connection and try again.",
     );
   }
 
@@ -170,12 +170,12 @@ export const removeMovie = async (id: string): Promise<void> => {
   const body = await response.json().catch(() => null);
   if (!response.ok) {
     throw new MovieApiError(
-      body?.error?.message ?? "Couldn’t save your change. Please try again.",
+      body?.error?.message ?? "Couldn't save your change. Please try again.",
       Array.isArray(body?.error?.issues) ? body.error.issues : [],
     );
   }
 
   if (body === null) {
-    throw new MovieApiError("Couldn’t read the response. Please try again.");
+    throw new MovieApiError("Couldn't read the response. Please try again.");
   }
 };

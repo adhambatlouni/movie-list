@@ -52,7 +52,7 @@ export const AddMovieForm = ({ onAdd }: Props) => {
         message:
           error instanceof Error
             ? error.message
-            : "Couldn’t add the movie. Please try again.",
+            : "Couldn't add the movie. Please try again.",
       });
     }
   };

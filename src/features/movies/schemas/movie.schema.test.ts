@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 import {
   createMovieSchema,
+  movieListSchema,
   movieParamsSchema,
   updateMovieSchema,
 } from "./movie.schema";
@@ -52,6 +53,23 @@ describe("createMovieSchema", () => {
       }).success,
     ).toBe(true);
   });
+});
+
+describe("movieListSchema", () => {
+  it("defaults to the first page and converts URL values", () => {
+    expect(movieListSchema.parse({})).toEqual({ q: "", page: 1 });
+    expect(movieListSchema.parse({ q: " Arrival ", page: "2" })).toEqual({
+      q: "Arrival",
+      page: 2,
+    });
+  });
+
+  it.each(["0", "-1", "1.5", "oops", "1000001"])(
+    "rejects invalid page %s",
+    (page) => {
+      expect(movieListSchema.safeParse({ page }).success).toBe(false);
+    },
+  );
 });
 
 describe("updateMovieSchema", () => {

@@ -154,7 +154,7 @@ export const MovieWatchlist = () => {
           <MovieListSkeleton />
         ) : !data ? (
           <div className="rounded-xl border bg-card p-8 text-center">
-            <h3 className="font-semibold">Couldn&apos;t load your movies</h3>
+            <h3 className="font-semibold">{"Couldn't load your movies"}</h3>
             <p role="alert" className="my-3 text-sm text-muted-foreground">
               {query.error?.message}
             </p>
@@ -175,8 +175,7 @@ export const MovieWatchlist = () => {
                 className="mb-4 rounded-lg border border-destructive/20 p-4 text-sm text-destructive"
               >
                 <p>
-                  Couldn&apos;t refresh your collection. Showing the last loaded
-                  movies.
+                  {"Couldn't refresh your collection. Showing the last loaded movies."}
                 </p>
                 <Button
                   variant="ghost"

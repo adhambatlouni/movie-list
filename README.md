@@ -298,6 +298,30 @@ axe accessibility checks. Failed tests save screenshots and traces under
 Jest covers validation, route responses, form behavior, optimistic updates, and
 rollback. Node tests use `.test.ts`; component tests use `.test.tsx` with jsdom.
 
+### Where to start reading the tests
+
+There are six test files. Each focuses on a different part of the application:
+
+| File | What it checks | What is mocked |
+| --- | --- | --- |
+| `movie.schema.test.ts` | Input validation and normalization | Nothing |
+| `movies-api.test.ts` | Browser requests and response errors | `fetch` |
+| `app/api/movies/route.test.ts` | HTTP responses, database queries, search and pagination | Supabase HTTP responses and Next.js request context |
+| `movie-search.test.tsx` | Immediate typing, debounce and clearing | Timer progression and the change callback |
+| `movie-watchlist.test.tsx` | Forms, dialogs, cache updates and rollback | Browser API functions, navigation and toast notifications |
+| `tests/e2e/watchlist.spec.ts` | Browser workflows, URL navigation, responsive loading and accessibility | `/api/movies` responses |
+
+Start with the schema tests, then follow the table down. Most cases follow three
+steps: arrange data, perform an action, and assert the result. In component tests,
+`deferred()` holds a fake request open so the test can inspect an optimistic change
+before resolving or rejecting it. Rollback tests also hold the following refresh
+open to prove the snapshot restored the movie, rather than a new server response.
+
+Detailed invalid-input cases live in schema tests; routes check representative
+validation failures and their HTTP responses. Debounce timing is tested with fake
+timers in Jest. Browser tests focus on integration, with one shared-spinner check
+per motion preference and loading/layout checks at phone and tablet widths.
+
 Automated suites mock network requests and do not modify Supabase. The separate
 live verification scripts use temporary records. Automated accessibility checks
 complement manual keyboard and screen-reader review.
