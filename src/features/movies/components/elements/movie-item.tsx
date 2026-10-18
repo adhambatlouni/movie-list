@@ -32,6 +32,7 @@ export const MovieItem = ({
 }: Props) => {
   const checkboxId = useId();
   const action = movie.watched ? "Mark as unwatched" : "Mark as watched";
+
   return (
     <li>
       <Accordion type="single" collapsible>

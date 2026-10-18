@@ -22,4 +22,5 @@ const Loading = () => (
     <MovieListSkeleton />
   </>
 );
+
 export default Loading;

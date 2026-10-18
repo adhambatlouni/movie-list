@@ -24,19 +24,25 @@ import { DeleteMovieDialog } from "./overlays/delete-movie-dialog";
 export const MovieWatchlist = () => {
   const searchParams = useSearchParams();
   const search = searchParams.get("q") ?? "";
+
   const parsedPage = movieListSchema.shape.page.safeParse(
     searchParams.get("page") ?? undefined,
   );
+
   const requestedPage = parsedPage.success ? parsedPage.data : 1;
+
   const { query, create, update, remove, isSaving } = useMovies(
     search.trim(),
     requestedPage,
   );
+
   const [adding, setAdding] = useState(false);
   const [selected, setSelected] = useState<Movie | null>(null);
+
   const addTrigger = useRef<HTMLButtonElement>(null);
   const deleteTrigger = useRef<HTMLButtonElement | null>(null);
   const collectionHeading = useRef<HTMLHeadingElement>(null);
+
   const data = query.data;
   const page = data?.page ?? requestedPage;
   const pageCount = Math.max(
@@ -49,6 +55,7 @@ export const MovieWatchlist = () => {
       const url = new URL(window.location.href);
       if (data.page === 1) url.searchParams.delete("page");
       else url.searchParams.set("page", String(data.page));
+
       window.history.replaceState(null, "", url);
     }
   }, [data, isSaving, requestedPage]);
@@ -57,14 +64,17 @@ export const MovieWatchlist = () => {
     const url = new URL(window.location.href);
     if (value) url.searchParams.set("q", value);
     else url.searchParams.delete("q");
+
     url.searchParams.delete("page");
     window.history.replaceState(null, "", url);
   };
+
   const add = async (input: CreateMovieInput) => {
     await create.mutateAsync(input);
     setSearch("");
     toast.success(`Added "${input.title}" to your watchlist.`);
   };
+
   const toggle = async (movie: Movie) => {
     try {
       await update.mutateAsync({ id: movie.id, watched: !movie.watched });
@@ -79,6 +89,7 @@ export const MovieWatchlist = () => {
       );
     }
   };
+
   const deleteMovie = async (id: string) => {
     await remove.mutateAsync(id);
     toast.success("Movie removed from your watchlist.");

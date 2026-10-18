@@ -21,6 +21,7 @@ export const listMovies = async ({
   let countQuery = db
     .from("movies")
     .select("id", { count: "exact", head: true });
+
   if (q) countQuery = countQuery.filter("title", "imatch", pattern);
   const { count, error: countError } = await countQuery;
   if (countError)
@@ -38,7 +39,9 @@ export const listMovies = async ({
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .range((page - 1) * MOVIES_PAGE_SIZE, page * MOVIES_PAGE_SIZE - 1);
+
   if (error) throw new Error("Failed to list movies.", { cause: error });
+
   return { movies: data, total, page, pageSize: MOVIES_PAGE_SIZE };
 };
 
@@ -50,6 +53,7 @@ export const createMovie = async (input: CreateMovieInput): Promise<Movie> => {
     .single();
 
   if (error) throw new Error("Failed to create movie.", { cause: error });
+
   return data;
 };
 
@@ -65,6 +69,7 @@ export const updateMovie = async (
     .maybeSingle();
 
   if (error) throw new Error("Failed to update movie.", { cause: error });
+
   return data;
 };
 
@@ -77,5 +82,6 @@ export const deleteMovie = async (id: string): Promise<boolean> => {
     .maybeSingle();
 
   if (error) throw new Error("Failed to delete movie.", { cause: error });
+
   return data !== null;
 };

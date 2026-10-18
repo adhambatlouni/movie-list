@@ -19,6 +19,7 @@ export const readJson = async (request: Request): Promise<unknown> => {
     ?.split(";")[0]
     .trim()
     .toLowerCase();
+
   if (mediaType !== "application/json") {
     throw new HttpError(
       415,
@@ -70,6 +71,7 @@ export const errorResponse = (error: unknown): Response => {
     "API request failed:",
     error instanceof Error ? error.message : "Unknown error.",
   );
+
   return Response.json(
     {
       error: {

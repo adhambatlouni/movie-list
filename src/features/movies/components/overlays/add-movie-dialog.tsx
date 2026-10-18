@@ -26,6 +26,7 @@ export const AddMovieDialog = ({
   onRestoreFocus: () => void;
 }) => {
   const submitting = useRef(false);
+
   const submit = async (input: CreateMovieInput) => {
     submitting.current = true;
     try {
@@ -35,6 +36,7 @@ export const AddMovieDialog = ({
       submitting.current = false;
     }
   };
+
   return (
     <Dialog
       open={open}

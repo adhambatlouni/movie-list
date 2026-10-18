@@ -33,6 +33,7 @@ const request = async <T>(path = "", options?: RequestInit): Promise<T> => {
       error.name === "AbortError"
     )
       throw error;
+
     throw new MovieApiError(
       "Couldn’t connect. Check your connection and try again.",
     );
@@ -47,8 +48,10 @@ const request = async <T>(path = "", options?: RequestInit): Promise<T> => {
       Array.isArray(body?.error?.issues) ? body.error.issues : [],
     );
   }
+
   if (body === null)
     throw new MovieApiError("Couldn’t read the response. Please try again.");
+
   return body as T;
 };
 
@@ -60,6 +63,7 @@ export const fetchMovies = (
     q: params.q,
     page: String(params.page),
   });
+
   return request<MoviePage>(`?${search}`, { signal });
 };
 

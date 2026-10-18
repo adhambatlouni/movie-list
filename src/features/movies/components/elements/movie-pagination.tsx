@@ -28,13 +28,17 @@ export const MoviePagination = ({
     const params = new URLSearchParams(searchParams);
     if (target === 1) params.delete("page");
     else params.set("page", String(target));
+
     return params.size ? `/?${params}` : "/";
   };
+
   const navigate = (event: MouseEvent<HTMLAnchorElement>, target: number) => {
     if (disabled || target < 1 || target > pageCount) {
       event.preventDefault();
+
       return;
     }
+
     if (
       event.metaKey ||
       event.ctrlKey ||
@@ -43,9 +47,11 @@ export const MoviePagination = ({
       event.button !== 0
     )
       return;
+
     event.preventDefault();
     if (target !== page) window.history.pushState(null, "", href(target));
   };
+
   const first = Math.max(1, Math.min(page - 1, pageCount - 2));
   const pages = Array.from(
     { length: Math.min(3, pageCount) },

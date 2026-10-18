@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 
 export const Accordion = AccordionPrimitive.Root;
 export const AccordionItem = AccordionPrimitive.Item;
+
 export const AccordionTrigger = ({
   className,
   children,
@@ -31,6 +32,7 @@ export const AccordionTrigger = ({
     </h4>
   </AccordionPrimitive.Header>
 );
+
 export const AccordionContent = ({
   className,
   children,

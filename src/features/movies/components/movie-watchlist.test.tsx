@@ -27,9 +27,11 @@ import type { Movie, MoviePage } from "../types";
 jest.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
+
 jest.mock("sonner", () => ({
   toast: { success: jest.fn(), error: jest.fn() },
 }));
+
 const { toast } = jest.requireMock<typeof import("sonner")>("sonner");
 
 jest.mock("../services/movies-api", () => ({
@@ -49,6 +51,7 @@ const api = jest.mocked(
     "../services/movies-api",
   ),
 );
+
 const { MovieWatchlist } =
   jest.requireActual<typeof import("./movie-watchlist")>("./movie-watchlist");
 
@@ -59,6 +62,7 @@ const arrival: Movie = {
   watched: false,
   created_at: "2026-10-15T12:00:00.000Z",
 };
+
 const perfectDays: Movie = {
   ...arrival,
   id: "00000000-0000-4000-8000-000000000002",
@@ -66,12 +70,14 @@ const perfectDays: Movie = {
   notes: null,
   created_at: "2026-10-15T13:00:00.000Z",
 };
+
 const pageOf = (movies: Movie[]): MoviePage => ({
   movies,
   total: movies.length,
   page: 1,
   pageSize: 5,
 });
+
 let client: QueryClient;
 
 const setup = () => {
@@ -81,11 +87,13 @@ const setup = () => {
       mutations: { retry: false },
     },
   });
+
   render(
     <QueryClientProvider client={client}>
       <MovieWatchlist />
     </QueryClientProvider>,
   );
+
   return userEvent.setup();
 };
 
@@ -96,6 +104,7 @@ const deferred = <T,>() => {
     resolve = resolvePromise;
     reject = rejectPromise;
   });
+
   return { promise, resolve, reject };
 };
 
@@ -122,6 +131,7 @@ describe("MovieWatchlist", () => {
     const toggle = await screen.findByRole("checkbox", {
       name: "Watched: Arrival",
     });
+
     const filteredKey = ["movies", { q: "arr", page: 2 }];
     const filteredPage = { ...pageOf([arrival]), total: 6, page: 2 };
     client.setQueryData(filteredKey, filteredPage);
@@ -130,10 +140,12 @@ describe("MovieWatchlist", () => {
     expect(client.getQueryData<MoviePage>(filteredKey)?.movies[0].watched).toBe(
       true,
     );
+
     await act(async () => write.reject(new Error("Write failed")));
     await waitFor(() =>
       expect(toggle).toHaveAttribute("aria-checked", "false"),
     );
+
     expect(client.getQueryData(filteredKey)).toEqual(filteredPage);
     await act(async () => read.resolve(pageOf([arrival])));
   });
@@ -147,6 +159,7 @@ describe("MovieWatchlist", () => {
     await user.click(
       await screen.findByRole("button", { name: "Add your first movie" }),
     );
+
     expect(screen.getByRole("textbox", { name: /Movie title/ })).toHaveFocus();
   });
 
@@ -156,6 +169,7 @@ describe("MovieWatchlist", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Connection unavailable.",
     );
+
     await user.click(screen.getByRole("button", { name: "Try again" }));
     expect(
       await screen.findByRole("heading", { name: "Arrival" }),
@@ -171,6 +185,7 @@ describe("MovieWatchlist", () => {
         .getAllByRole("heading", { level: 3 })
         .map((heading) => heading.textContent),
     ).toEqual(["Perfect Days", "Arrival"]);
+
     await user.click(screen.getByRole("button", { name: "Notes for Arrival" }));
     expect(within(list).getByText("For a quiet evening")).toBeVisible();
   });
@@ -182,14 +197,17 @@ describe("MovieWatchlist", () => {
       screen.getByRole("textbox", { name: /Movie title/ }),
       "   ",
     );
+
     await user.click(screen.getByRole("button", { name: "Add to watchlist" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Title is required.",
     );
+
     expect(screen.getByRole("textbox", { name: /Movie title/ })).toHaveFocus();
     expect(
       screen.getByRole("textbox", { name: /Movie title/ }),
     ).toHaveAttribute("aria-invalid", "true");
+
     expect(api.addMovie).not.toHaveBeenCalled();
   });
 
@@ -207,24 +225,29 @@ describe("MovieWatchlist", () => {
       title: "Perfect Days",
       notes: null,
     });
+
     expect(
       screen.getByRole("button", { name: "Adding movie…" }),
     ).toBeDisabled();
+
     expect(title).toHaveValue("  Perfect Days  ");
     api.fetchMovies.mockResolvedValue(pageOf([perfectDays, arrival]));
     await act(async () => pending.resolve(perfectDays));
     expect(
       await screen.findByRole("heading", { name: "Perfect Days" }),
     ).toBeVisible();
+
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
+
     expect(screen.getByRole("button", { name: "Add movie" })).toHaveFocus();
     expect(api.fetchMovies).toHaveBeenCalledTimes(2);
     await user.click(screen.getByRole("button", { name: "Add movie" }));
     expect(screen.getByRole("textbox", { name: /Movie title/ })).toHaveValue(
       "",
     );
+
     expect(screen.getByRole("textbox", { name: "Notes" })).toHaveValue("");
     expect(screen.getByRole("textbox", { name: /Movie title/ })).toHaveFocus();
   });
@@ -233,26 +256,32 @@ describe("MovieWatchlist", () => {
     api.addMovie.mockRejectedValue(
       new api.MovieApiError("Couldn't save the movie."),
     );
+
     const user = setup();
     await user.click(screen.getByRole("button", { name: "Add movie" }));
     await user.type(
       screen.getByRole("textbox", { name: /Movie title/ }),
       "Perfect Days",
     );
+
     await user.type(
       screen.getByRole("textbox", { name: "Notes" }),
       "Recommended by a friend",
     );
+
     await user.click(screen.getByRole("button", { name: "Add to watchlist" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Couldn't save the movie.",
     );
+
     expect(screen.getByRole("textbox", { name: /Movie title/ })).toHaveValue(
       "Perfect Days",
     );
+
     expect(screen.getByRole("textbox", { name: "Notes" })).toHaveValue(
       "Recommended by a friend",
     );
+
     expect(
       screen.getByRole("button", { name: "Add to watchlist" }),
     ).toBeEnabled();
@@ -264,12 +293,14 @@ describe("MovieWatchlist", () => {
         { path: "title", message: "Please check this title." },
       ]),
     );
+
     const user = setup();
     await user.click(screen.getByRole("button", { name: "Add movie" }));
     await user.type(
       screen.getByRole("textbox", { name: /Movie title/ }),
       "Perfect Days",
     );
+
     await user.click(screen.getByRole("button", { name: "Add to watchlist" }));
     await waitFor(() =>
       expect(
@@ -285,16 +316,19 @@ describe("MovieWatchlist", () => {
     const toggle = await screen.findByRole("checkbox", {
       name: "Watched: Arrival",
     });
+
     await user.click(toggle);
     await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
     expect(toggle).toBeDisabled();
     expect(
       screen.getByRole("button", { name: "Delete Arrival" }),
     ).toBeDisabled();
+
     expect(screen.getByRole("button", { name: "Add movie" })).toBeDisabled();
     await act(async () =>
       pending.reject(new api.MovieApiError("Couldn't save watched status.")),
     );
+
     await waitFor(() => expect(toggle).toBeEnabled());
     expect(toast.error).toHaveBeenCalledWith("Couldn't save watched status.");
     expect(toggle).toHaveAttribute("aria-checked", "false");
@@ -306,12 +340,15 @@ describe("MovieWatchlist", () => {
     api.fetchMovies.mockImplementation(async () => pageOf([saved]));
     api.setMovieWatched.mockImplementation(async (_id, input) => {
       saved = { ...saved, ...input };
+
       return saved;
     });
+
     const user = setup();
     const toggle = await screen.findByRole("checkbox", {
       name: "Watched: Arrival",
     });
+
     await user.click(screen.getByText("To watch", { exact: true }));
     await waitFor(() => expect(toggle).toBeEnabled());
     expect(toggle).toHaveAttribute("aria-checked", "true");
@@ -321,6 +358,7 @@ describe("MovieWatchlist", () => {
     expect(api.setMovieWatched).toHaveBeenLastCalledWith(arrival.id, {
       watched: false,
     });
+
     expect(api.fetchMovies).toHaveBeenCalledTimes(1);
     expect(toast.success).toHaveBeenLastCalledWith(
       expect.stringContaining("unwatched"),
@@ -332,6 +370,7 @@ describe("MovieWatchlist", () => {
     const trigger = await screen.findByRole("button", {
       name: "Delete Arrival",
     });
+
     await user.click(trigger);
     const dialog = screen.getByRole("alertdialog");
     const cancel = within(dialog).getByRole("button", { name: "Keep movie" });
@@ -340,6 +379,7 @@ describe("MovieWatchlist", () => {
     await waitFor(() =>
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
     );
+
     expect(api.removeMovie).not.toHaveBeenCalled();
     expect(trigger).toHaveFocus();
   });
@@ -351,24 +391,29 @@ describe("MovieWatchlist", () => {
     await user.click(
       await screen.findByRole("button", { name: "Delete Arrival" }),
     );
+
     await user.click(screen.getByRole("button", { name: "Delete movie" }));
     await waitFor(() =>
       expect(
         screen.queryByRole("heading", { name: "Arrival", hidden: true }),
       ).not.toBeInTheDocument(),
     );
+
     expect(screen.getByRole("button", { name: "Deleting…" })).toBeDisabled();
     api.fetchMovies.mockResolvedValue(pageOf([]));
     await act(async () => pending.resolve());
     await waitFor(() =>
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
     );
+
     expect(
       screen.getByRole("heading", { name: /Your collection/ }),
     ).toHaveFocus();
+
     expect(
       screen.getByRole("button", { name: "Add your first movie" }),
     ).toBeVisible();
+
     expect(api.fetchMovies).toHaveBeenCalledTimes(2);
   });
 
@@ -376,6 +421,7 @@ describe("MovieWatchlist", () => {
     api.fetchMovies
       .mockRejectedValueOnce(new Error("Unavailable"))
       .mockResolvedValue(pageOf([perfectDays, arrival]));
+
     api.addMovie.mockResolvedValue(perfectDays);
     const user = setup();
     await screen.findByRole("alert");
@@ -384,10 +430,12 @@ describe("MovieWatchlist", () => {
       screen.getByRole("textbox", { name: /Movie title/ }),
       "Perfect Days",
     );
+
     await user.click(screen.getByRole("button", { name: "Add to watchlist" }));
     expect(
       await screen.findByRole("heading", { name: "Arrival" }),
     ).toBeVisible();
+
     expect(screen.getByRole("heading", { name: "Perfect Days" })).toBeVisible();
     expect(api.fetchMovies).toHaveBeenCalledTimes(2);
   });
@@ -397,6 +445,7 @@ describe("MovieWatchlist", () => {
     const toggle = await screen.findByRole("checkbox", {
       name: "Watched: Arrival",
     });
+
     const oldRead = deferred<MoviePage>();
     const save = deferred<Movie>();
     api.fetchMovies.mockReturnValueOnce(oldRead.promise);
@@ -405,6 +454,7 @@ describe("MovieWatchlist", () => {
     act(() => {
       refresh = client.invalidateQueries({ queryKey: ["movies"] });
     });
+
     await waitFor(() => expect(api.fetchMovies).toHaveBeenCalledTimes(2));
     const signal = api.fetchMovies.mock.calls[1][1];
     await user.click(toggle);
@@ -414,11 +464,13 @@ describe("MovieWatchlist", () => {
       oldRead.resolve(pageOf([arrival]));
       await refresh;
     });
+
     expect(toggle).toHaveAttribute("aria-checked", "true");
     // The response is authoritative even when it differs from our prediction.
     await act(async () =>
       save.resolve({ ...arrival, notes: "Confirmed by server" }),
     );
+
     await waitFor(() => expect(toggle).toBeEnabled());
     expect(toggle).toHaveAttribute("aria-checked", "false");
     await user.click(screen.getByRole("button", { name: "Notes for Arrival" }));
@@ -433,6 +485,7 @@ describe("MovieWatchlist", () => {
     const toggle = await screen.findByRole("checkbox", {
       name: "Watched: Arrival",
     });
+
     await user.click(toggle);
     await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
     await act(async () => {
@@ -441,6 +494,7 @@ describe("MovieWatchlist", () => {
       onlineManager.setOnline(false);
       onlineManager.setOnline(true);
     });
+
     expect(api.fetchMovies).toHaveBeenCalledTimes(1);
     const saved = { ...arrival, watched: true };
     api.fetchMovies.mockResolvedValue(pageOf([saved]));
@@ -450,6 +504,7 @@ describe("MovieWatchlist", () => {
       focusManager.setFocused(false);
       focusManager.setFocused(true);
     });
+
     await waitFor(() => expect(api.fetchMovies).toHaveBeenCalledTimes(2));
   });
 
@@ -457,23 +512,28 @@ describe("MovieWatchlist", () => {
     api.removeMovie.mockRejectedValueOnce(
       new api.MovieApiError("Couldn't delete this movie."),
     );
+
     const user = setup();
     await user.click(
       await screen.findByRole("button", { name: "Delete Arrival" }),
     );
+
     await user.click(screen.getByRole("button", { name: "Delete movie" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Couldn't delete this movie.",
     );
+
     expect(
       screen.getByRole("heading", { name: "Arrival", hidden: true }),
     ).toBeInTheDocument();
+
     api.removeMovie.mockResolvedValue(undefined);
     api.fetchMovies.mockResolvedValue(pageOf([]));
     await user.click(screen.getByRole("button", { name: "Delete movie" }));
     await waitFor(() =>
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
     );
+
     expect(api.removeMovie).toHaveBeenCalledTimes(2);
   });
 
@@ -484,9 +544,11 @@ describe("MovieWatchlist", () => {
     await act(async () => {
       await client.invalidateQueries({ queryKey: ["movies"] });
     });
+
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Showing the last loaded movies.",
     );
+
     expect(screen.getByRole("heading", { name: "Arrival" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Retry refresh" }));
     await waitFor(() =>
@@ -498,16 +560,19 @@ describe("MovieWatchlist", () => {
     api.addMovie
       .mockRejectedValueOnce(new api.MovieApiError("Save failed."))
       .mockResolvedValue(perfectDays);
+
     const user = setup();
     await user.click(screen.getByRole("button", { name: "Add movie" }));
     await user.type(
       screen.getByRole("textbox", { name: /Movie title/ }),
       "  Perfect Days  ",
     );
+
     await user.type(
       screen.getByRole("textbox", { name: "Notes" }),
       "  Watch this weekend  ",
     );
+
     await user.click(screen.getByRole("button", { name: "Add to watchlist" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Save failed.");
     await user.click(screen.getByRole("textbox", { name: /Movie title/ }));
@@ -515,6 +580,7 @@ describe("MovieWatchlist", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
+
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(api.addMovie.mock.calls[1][0]).toEqual({
       title: "Perfect Days",
@@ -530,6 +596,7 @@ describe("MovieWatchlist", () => {
     const toggle = await screen.findByRole("checkbox", {
       name: "Watched: Arrival",
     });
+
     api.fetchMovies.mockReturnValueOnce(refresh.promise);
     await user.click(toggle);
     await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
@@ -554,6 +621,7 @@ describe("MovieWatchlist", () => {
     await user.click(
       await screen.findByRole("button", { name: "Delete Perfect Days" }),
     );
+
     api.fetchMovies.mockReturnValueOnce(refresh.promise);
     await user.click(screen.getByRole("button", { name: "Delete movie" }));
     await waitFor(() =>
@@ -561,6 +629,7 @@ describe("MovieWatchlist", () => {
         screen.queryByRole("heading", { name: "Perfect Days", hidden: true }),
       ).not.toBeInTheDocument(),
     );
+
     await act(async () => save.reject(new api.MovieApiError("Delete failed.")));
     await waitFor(() => expect(api.fetchMovies).toHaveBeenCalledTimes(2));
     const list = screen.getByRole("list", { hidden: true });
@@ -569,6 +638,7 @@ describe("MovieWatchlist", () => {
         .getAllByRole("heading", { hidden: true, level: 3 })
         .map((heading) => heading.textContent),
     ).toEqual(["Perfect Days", "Arrival"]);
+
     expect(screen.getByRole("button", { name: "Deleting…" })).toBeDisabled();
     // A lost response can mean the delete actually succeeded. A fresh server
     // result should then replace the rolled-back snapshot.
@@ -576,9 +646,11 @@ describe("MovieWatchlist", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Delete failed.",
     );
+
     expect(
       screen.queryByRole("heading", { name: "Perfect Days", hidden: true }),
     ).not.toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "Keep movie" }));
     expect(screen.getByRole("heading", { name: "Arrival" })).toBeVisible();
   });

@@ -20,6 +20,7 @@ export const GET = async (request: Request) => {
       q: params.get("q") ?? undefined,
       page: params.get("page") ?? undefined,
     });
+
     return Response.json(await listMovies(input), {
       headers: { "Cache-Control": "no-store" },
     });
@@ -32,6 +33,7 @@ export const POST = async (request: Request) => {
   try {
     const input = createMovieSchema.parse(await readJson(request));
     const movie = await createMovie(input);
+
     return Response.json(movie, { status: 201 });
   } catch (error) {
     return errorResponse(error);
