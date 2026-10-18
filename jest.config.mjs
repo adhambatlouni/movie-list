@@ -1,6 +1,7 @@
 import nextJest from "next/jest.js";
 
 const createJestConfig = nextJest({ dir: "./" });
+
 const project = (testEnvironment, extension) =>
   createJestConfig({
     displayName: testEnvironment,

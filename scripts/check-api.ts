@@ -7,6 +7,7 @@ assert.ok(
   Number.isInteger(port) && port > 0 && port <= 65535,
   "Supply a valid local port.",
 );
+
 const baseUrl = `http://127.0.0.1:${port}/api/movies`;
 const tag = `[API check] ${randomUUID()}`;
 const titles = [
@@ -32,13 +33,16 @@ const listPage = async (q = tag, page = 1): Promise<MoviePage> => {
   const response = await call(
     `?${new URLSearchParams({ q, page: String(page) })}`,
   );
+
   assert.equal(response.status, 200, "Listing movies failed.");
   assert.equal(response.headers.get("cache-control"), "no-store");
   const result: MoviePage = await response.json();
   assert.ok(Array.isArray(result.movies), "GET must return a movies array.");
   assert.equal(result.pageSize, 5);
+
   return result;
 };
+
 const list = async () => (await listPage()).movies;
 
 const checkApi = async () => {
@@ -50,6 +54,7 @@ const checkApi = async () => {
       title: `  ${titles[0]}  `,
       notes: "  Keep this note  ",
     });
+
     assert.equal(firstResponse.status, 201, "Create failed.");
     const first: Movie = await firstResponse.json();
     assert.equal(first.title, titles[0]);
@@ -68,6 +73,7 @@ const checkApi = async () => {
       firstIndex >= 0 && secondIndex >= 0,
       "Created movies were not persisted.",
     );
+
     assert.ok(secondIndex < firstIndex, "Movies must be listed newest first.");
 
     for (const watched of [true, false]) {
@@ -86,11 +92,13 @@ const checkApi = async () => {
         .status,
       400,
     );
+
     assert.equal((await call("/not-a-uuid", "DELETE")).status, 400);
     assert.equal(
       (await call(`/${randomUUID()}`, "PATCH", { watched: true })).status,
       404,
     );
+
     assert.equal((await call("", "PUT", {})).status, 405);
 
     const deleted = await call(`/${first.id}`, "DELETE");
@@ -100,11 +108,13 @@ const checkApi = async () => {
       !(await list()).some((movie) => movie.id === first.id),
       "Deletion did not persist.",
     );
+
     assert.equal((await call(`/${first.id}`, "DELETE")).status, 404);
 
     for (const title of titles.slice(2)) {
       assert.equal((await call("", "POST", { title })).status, 201);
     }
+
     const firstPage = await listPage(tag.toUpperCase());
     const secondPage = await listPage(tag, 2);
     assert.equal(firstPage.total, 7);
@@ -116,11 +126,13 @@ const checkApi = async () => {
       ).size,
       7,
     );
+
     assert.deepEqual(
       await listPage(tag, 999),
       secondPage,
       "Out-of-range pages must clamp to the last page.",
     );
+
     const literal = await listPage(titles[2]);
     assert.equal(literal.total, 1, "Search punctuation must be literal.");
     assert.equal(literal.movies[0].title, titles[2]);
@@ -134,6 +146,7 @@ const checkApi = async () => {
       let remaining = (await list()).filter((movie) =>
         titles.includes(movie.title),
       );
+
       while (remaining.length) {
         for (const movie of remaining) {
           assert.equal(
@@ -142,10 +155,12 @@ const checkApi = async () => {
             "Cleanup failed.",
           );
         }
+
         remaining = (await list()).filter((movie) =>
           titles.includes(movie.title),
         );
       }
+
       assert.ok(
         !(await list()).some((movie) => titles.includes(movie.title)),
         "Cleanup did not persist.",
@@ -154,6 +169,7 @@ const checkApi = async () => {
       console.error(
         `Cleanup could not finish. Remove only movies whose titles start with "${tag}".`,
       );
+
       if (passed) throw error;
     }
   }

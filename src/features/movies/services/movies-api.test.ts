@@ -15,6 +15,7 @@ const movie: Movie = {
   watched: false,
   created_at: "2026-10-15T12:00:00Z",
 };
+
 let fetchMock: jest.SpiedFunction<typeof fetch>;
 
 beforeEach(() => {
@@ -28,10 +29,12 @@ describe("movie browser API client", () => {
     fetchMock.mockResolvedValue(
       Response.json({ movies: [movie], total: 1, page: 2, pageSize: 5 }),
     );
+
     const controller = new AbortController();
     expect(
       await fetchMovies({ q: "Arrival", page: 2 }, controller.signal),
     ).toEqual({ movies: [movie], total: 1, page: 2, pageSize: 5 });
+
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/movies?q=Arrival&page=2",
       expect.objectContaining({
@@ -88,6 +91,7 @@ describe("movie browser API client", () => {
         { status: 400 },
       ),
     );
+
     await expect(addMovie({ title: "", notes: null })).rejects.toMatchObject({
       name: "MovieApiError",
       message: "Request validation failed.",
@@ -112,6 +116,7 @@ describe("movie browser API client", () => {
     fetchMock.mockResolvedValue(
       new Response("<html>Internal proxy details</html>", { status: 502 }),
     );
+
     await expect(fetchMovies({ q: "", page: 1 })).rejects.toEqual(
       new MovieApiError("Couldn’t save your change. Please try again."),
     );

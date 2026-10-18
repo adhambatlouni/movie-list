@@ -28,6 +28,7 @@ export const AddMovieForm = ({ onAdd }: Props) => {
     resolver: zodResolver(createMovieSchema),
     defaultValues: { title: "", notes: "" },
   });
+
   const { errors, isSubmitting } = form.formState;
 
   const submit = async (input: CreateMovieInput) => {
@@ -46,6 +47,7 @@ export const AddMovieForm = ({ onAdd }: Props) => {
           }
         }
       }
+
       form.setError("root", {
         message:
           error instanceof Error

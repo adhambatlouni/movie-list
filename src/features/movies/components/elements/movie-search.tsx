@@ -24,6 +24,7 @@ export const MovieSearch = ({
     setPreviousValue(value);
     setDraft(value);
   }
+
   useEffect(() => () => clearTimeout(timer.current), [value]);
 
   const change = (next: string) => {
@@ -32,6 +33,7 @@ export const MovieSearch = ({
     if (!next) onChange("");
     else timer.current = setTimeout(() => onChange(next), 300);
   };
+
   return (
     <div role="search" className="mb-5">
       <Label htmlFor="movie-search" className="sr-only">

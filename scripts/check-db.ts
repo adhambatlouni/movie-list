@@ -30,12 +30,14 @@ const checkDatabase = async () => {
       .insert({ title })
       .select("*")
       .single();
+
     checkError(insertError, "Insert");
     assert.ok(movie, "Insert returned no movie.");
     assert.match(
       movie.id,
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
+
     assert.equal(movie.title, title);
     assert.equal(movie.notes, null, "Notes should default to null.");
     assert.equal(movie.watched, false, "Movies should default to unwatched.");
@@ -51,6 +53,7 @@ const checkDatabase = async () => {
       .select("*")
       .eq("id", movie.id)
       .single();
+
     checkError(readError, "Read");
     assert.deepEqual(
       saved,
@@ -63,6 +66,7 @@ const checkDatabase = async () => {
         .from("movies")
         .update({ watched })
         .eq("id", movie.id);
+
       checkError(updateError, "Update");
 
       const reread: PostgrestSingleResponse<Pick<Movie, "watched">> =
@@ -71,6 +75,7 @@ const checkDatabase = async () => {
           .select("watched")
           .eq("id", movie.id)
           .single();
+
       checkError(reread.error, "Read after update");
       assert.equal(
         reread.data?.watched,
@@ -78,6 +83,7 @@ const checkDatabase = async () => {
         "Watched status did not persist.",
       );
     }
+
     operationsPassed = true;
   } finally {
     const { error: deleteError } = await client
@@ -98,6 +104,7 @@ const checkDatabase = async () => {
     .from("movies")
     .select("id")
     .eq("title", title);
+
   checkError(finalReadError, "Read after delete");
   assert.deepEqual(remaining, [], "The temporary movie was not deleted.");
 
@@ -110,5 +117,6 @@ checkDatabase().catch((error: unknown) => {
   console.error(
     error instanceof Error ? error.message : "Database check failed.",
   );
+
   process.exitCode = 1;
 });

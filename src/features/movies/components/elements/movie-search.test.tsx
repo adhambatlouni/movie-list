@@ -12,6 +12,7 @@ import { MovieSearch } from "./movie-search";
 beforeEach(() => {
   jest.useFakeTimers();
 });
+
 afterEach(() => {
   cleanup();
   jest.useRealTimers();
@@ -38,6 +39,7 @@ it("clears immediately and cancels any pending search", () => {
   fireEvent.change(screen.getByRole("searchbox"), {
     target: { value: "perfect" },
   });
+
   fireEvent.click(screen.getByRole("button", { name: "Clear title search" }));
   expect(screen.getByRole("searchbox")).toHaveValue("");
   act(() => jest.advanceTimersByTime(300));
@@ -50,9 +52,11 @@ it("discards pending typing when navigation supplies another URL value", () => {
   const { rerender, unmount } = render(
     <MovieSearch value="arrival" onChange={onChange} />,
   );
+
   fireEvent.change(screen.getByRole("searchbox"), {
     target: { value: "draft" },
   });
+
   rerender(<MovieSearch value="perfect" onChange={onChange} />);
   expect(screen.getByRole("searchbox")).toHaveValue("perfect");
   act(() => jest.advanceTimersByTime(300));
@@ -60,6 +64,7 @@ it("discards pending typing when navigation supplies another URL value", () => {
   fireEvent.change(screen.getByRole("searchbox"), {
     target: { value: "unfinished" },
   });
+
   unmount();
   act(() => jest.advanceTimersByTime(300));
   expect(onChange).not.toHaveBeenCalled();

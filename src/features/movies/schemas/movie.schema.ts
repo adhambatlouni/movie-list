@@ -33,4 +33,5 @@ export const movieListSchema = z.object({
     .pipe(z.number().int().max(1_000_000))
     .default(1),
 });
+
 export type MovieListInput = z.infer<typeof movieListSchema>;
