@@ -86,7 +86,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *:not([data-slot="spinner"]),
+  *:not([data-slot="spinner"]):not([data-slot="accordion-content"]):not([data-slot="accordion-chevron"]),
   *::before,
   *::after {
     animation: none !important;

@@ -23,6 +23,7 @@ export const AccordionTrigger = ({
       >
         {children}
         <ChevronDown
+          data-slot="accordion-chevron"
           aria-hidden="true"
           className="size-5 shrink-0 transition-transform duration-250 ease-in-out"
         />
@@ -36,6 +37,7 @@ export const AccordionContent = ({
   ...props
 }: ComponentProps<typeof AccordionPrimitive.Content>) => (
   <AccordionPrimitive.Content
+    data-slot="accordion-content"
     className="overflow-hidden text-sm leading-6 text-muted-foreground duration-250 ease-in-out data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up"
     {...props}
   >

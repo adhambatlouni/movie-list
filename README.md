@@ -33,7 +33,7 @@ PostgreSQL and stays there after a refresh.
 - Delete movies after confirmation.
 - Search titles on the server with a 300 ms debounce.
 - Browse five movies per page, newest first. Search and page are saved in the URL.
-- Expand notes inline, with keyboard controls and reduced-motion support.
+- Expand notes inline, with keyboard controls and a smooth height animation.
 - Responsive layouts, loading skeletons, inline errors, and toast notifications.
 
 The current scope excludes title editing, genres, and accounts. This is a local
@@ -222,10 +222,11 @@ database credentials.
   Search resets to page one; obsolete requests are cancelled.
 - **Accessible feedback:** dialogs manage focus, fields have linked errors,
   checkboxes expose watched state, and keyboard users have visible focus.
-  Notes animate to their measured height with reduced-motion support.
+  Notes animate to their measured height, with matching arrow rotation.
 - **Loading:** `app/loading.tsx` provides the route fallback. Query loading uses
   matching list and pagination skeletons. No artificial delays are added.
-  The small pending-action spinner stays animated in reduced-motion mode.
+  The pending-action spinner and notes accordion stay animated independently of
+  the operating system's reduced-motion setting. Other decorative effects respect it.
 
 ## API
 
