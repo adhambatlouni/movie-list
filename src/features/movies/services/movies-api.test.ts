@@ -99,9 +99,14 @@ describe("movie browser API client", () => {
     });
   });
 
-  it("turns network failures into a readable error", async () => {
+  it.each([
+    ["list", () => fetchMovies({ q: "", page: 1 })],
+    ["create", () => addMovie({ title: "Arrival", notes: null })],
+    ["update", () => setMovieWatched(movie.id, { watched: true })],
+    ["delete", () => removeMovie(movie.id)],
+  ])("turns %s network failures into a readable error", async (_name, call) => {
     fetchMock.mockRejectedValue(new TypeError("fetch failed"));
-    await expect(fetchMovies({ q: "", page: 1 })).rejects.toThrow(
+    await expect(call()).rejects.toThrow(
       "Check your connection and try again.",
     );
   });

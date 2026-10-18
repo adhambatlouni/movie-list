@@ -16,30 +16,36 @@ export class MovieApiError extends Error {
   }
 }
 
-const request = async <T>(path = "", options?: RequestInit): Promise<T> => {
+export const fetchMovies = async (
+  params: { q: string; page: number },
+  signal?: AbortSignal,
+): Promise<MoviePage> => {
+  const search = new URLSearchParams({
+    q: params.q,
+    page: String(params.page),
+  });
+
   let response: Response;
   try {
-    response = await fetch(`/api/movies${path}`, {
-      ...options,
-      headers: { "Content-Type": "application/json" },
+    response = await fetch(`/api/movies?${search}`, {
+      method: "GET",
+      signal,
       cache: "no-store",
     });
   } catch (error) {
-    // DOMException and cross-realm errors need not inherit this realm's Error.
     if (
       typeof error === "object" &&
       error !== null &&
       "name" in error &&
       error.name === "AbortError"
-    )
+    ) {
       throw error;
+    }
 
     throw new MovieApiError(
       "Couldn’t connect. Check your connection and try again.",
     );
   }
-
-  if (response.status === 204 && response.ok) return undefined as T;
 
   const body = await response.json().catch(() => null);
   if (!response.ok) {
@@ -49,35 +55,127 @@ const request = async <T>(path = "", options?: RequestInit): Promise<T> => {
     );
   }
 
-  if (body === null)
+  if (body === null) {
     throw new MovieApiError("Couldn’t read the response. Please try again.");
+  }
 
-  return body as T;
+  return body as MoviePage;
 };
 
-export const fetchMovies = (
-  params: { q: string; page: number },
-  signal?: AbortSignal,
-) => {
-  const search = new URLSearchParams({
-    q: params.q,
-    page: String(params.page),
-  });
+export const addMovie = async (input: CreateMovieInput): Promise<Movie> => {
+  let response: Response;
+  try {
+    response = await fetch("/api/movies", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+      cache: "no-store",
+    });
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "name" in error &&
+      error.name === "AbortError"
+    ) {
+      throw error;
+    }
 
-  return request<MoviePage>(`?${search}`, { signal });
+    throw new MovieApiError(
+      "Couldn’t connect. Check your connection and try again.",
+    );
+  }
+
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new MovieApiError(
+      body?.error?.message ?? "Couldn’t save your change. Please try again.",
+      Array.isArray(body?.error?.issues) ? body.error.issues : [],
+    );
+  }
+
+  if (body === null) {
+    throw new MovieApiError("Couldn’t read the response. Please try again.");
+  }
+
+  return body as Movie;
 };
 
-export const addMovie = (input: CreateMovieInput) => {
-  return request<Movie>("", { method: "POST", body: JSON.stringify(input) });
+export const setMovieWatched = async (
+  id: string,
+  input: UpdateMovieInput,
+): Promise<Movie> => {
+  let response: Response;
+  try {
+    response = await fetch(`/api/movies/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+      cache: "no-store",
+    });
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "name" in error &&
+      error.name === "AbortError"
+    ) {
+      throw error;
+    }
+
+    throw new MovieApiError(
+      "Couldn’t connect. Check your connection and try again.",
+    );
+  }
+
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new MovieApiError(
+      body?.error?.message ?? "Couldn’t save your change. Please try again.",
+      Array.isArray(body?.error?.issues) ? body.error.issues : [],
+    );
+  }
+
+  if (body === null) {
+    throw new MovieApiError("Couldn’t read the response. Please try again.");
+  }
+
+  return body as Movie;
 };
 
-export const setMovieWatched = (id: string, input: UpdateMovieInput) => {
-  return request<Movie>(`/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    body: JSON.stringify(input),
-  });
-};
+export const removeMovie = async (id: string): Promise<void> => {
+  let response: Response;
+  try {
+    response = await fetch(`/api/movies/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      cache: "no-store",
+    });
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "name" in error &&
+      error.name === "AbortError"
+    ) {
+      throw error;
+    }
 
-export const removeMovie = (id: string) => {
-  return request<void>(`/${encodeURIComponent(id)}`, { method: "DELETE" });
+    throw new MovieApiError(
+      "Couldn’t connect. Check your connection and try again.",
+    );
+  }
+
+  if (response.status === 204) return;
+
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new MovieApiError(
+      body?.error?.message ?? "Couldn’t save your change. Please try again.",
+      Array.isArray(body?.error?.issues) ? body.error.issues : [],
+    );
+  }
+
+  if (body === null) {
+    throw new MovieApiError("Couldn’t read the response. Please try again.");
+  }
 };
