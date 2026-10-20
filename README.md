@@ -15,6 +15,7 @@
 </p>
 
 <p align="center">
+  <a href="https://adham-movie-watchlist.vercel.app/">Live Demo</a> ·
   <a href="#getting-started">Setup</a> ·
   <a href="#docker">Docker</a> ·
   <a href="#architecture">Architecture</a> ·
@@ -36,9 +37,10 @@ PostgreSQL and stays there after a refresh.
 - Expand notes inline, with keyboard controls and a smooth height animation.
 - Responsive layouts, loading skeletons, inline errors, and toast notifications.
 
-The current scope excludes title editing, genres, and accounts. This is a local
-application with a shared watchlist. Read [Security](#security) before considering
-public deployment.
+Try the [live demo on Vercel](https://adham-movie-watchlist.vercel.app/).
+The current scope excludes title editing, genres, and accounts. Everyone uses
+the same shared watchlist, so demo entries can be changed by other visitors.
+Read [Security](#security) for the current access limitations.
 
 ## Stack
 
@@ -344,20 +346,20 @@ Download the `playwright-report` artifact from an Actions run, extract it, then 
 npx playwright show-report <extracted-folder>/playwright-report
 ```
 
-CI verifies the app. Deployment is deferred until hosting and access controls
-are configured.
+CI verifies the app. The live demo is hosted on
+[Vercel](https://adham-movie-watchlist.vercel.app/), with data stored in Supabase.
 
 ## Security
 
 This version has **no authentication or authorization at the Next.js API**.
 Anyone who can reach the endpoints can read or change the shared watchlist.
-Do not deploy it publicly as-is.
+Use the public demo only with non-sensitive, disposable data.
 
 The migration enables RLS and grants table access only to `service_role`.
 The server secret bypasses RLS and stays in server-only code. Those database
 restrictions do not protect the unauthenticated REST endpoints.
 
-Before public deployment, add authentication, ownership checks, request-size and
+Before using it for private watchlists, add authentication, ownership checks, request-size and
 rate limits, appropriate origin protections, and production secret management.
 Review dependencies with `npm audit` and `npm audit --omit=dev`; assess fixes
 before applying changes that could replace major versions.
