@@ -42,7 +42,7 @@ export const MovieItem = ({
               htmlFor={checkboxId}
               aria-busy={saving}
               title={action}
-              className="relative flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-muted/50"
+              className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-muted/50"
             >
               <Checkbox
                 id={checkboxId}
@@ -52,7 +52,6 @@ export const MovieItem = ({
                 aria-label={`Watched: ${movie.title}`}
                 title={action}
               />
-              {saving && <Spinner className="absolute right-0 size-3" />}
             </Label>
             <div className="min-w-0 flex-1">
               <h3
@@ -65,9 +64,10 @@ export const MovieItem = ({
               </h3>
               <Label
                 htmlFor={checkboxId}
-                className="cursor-pointer text-xs leading-5 text-muted-foreground"
+                className="inline-flex cursor-pointer items-center gap-1.5 text-xs leading-5 text-muted-foreground"
                 title={action}
               >
+                {saving && <Spinner className="size-3" />}
                 {saving ? "Saving..." : movie.watched ? "Watched" : "To watch"}
               </Label>
             </div>
