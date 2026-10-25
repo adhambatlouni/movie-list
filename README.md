@@ -31,6 +31,14 @@ React components compose the experience, TanStack Query manages server state,
 Next.js Route Handlers define the API boundary, shared Zod schemas protect both
 forms and requests, and server-only services own database access.
 
+<p align="center">
+  <a href="https://adham-movie-watchlist.vercel.app/">
+    <img src="docs/images/movie-watchlist-preview.png" alt="Movie Watchlist displaying a curated collection of sample films" />
+  </a>
+  <br />
+  <sub>Production interface shown with deterministic sample data.</sub>
+</p>
+
 ## Live demo
 
 The production application runs on Vercel with persistent data stored in
