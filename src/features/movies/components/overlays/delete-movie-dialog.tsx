@@ -65,6 +65,7 @@ export const DeleteMovieDialog = ({
       }}
     >
       <AlertDialogContent
+        className="max-w-104 gap-0 p-0"
         onEscapeKeyDown={(event) => {
           if (submitting.current) event.preventDefault();
         }}
@@ -73,25 +74,34 @@ export const DeleteMovieDialog = ({
           onRestoreFocus();
         }}
       >
-        <span
-          aria-hidden="true"
-          className="flex size-11 items-center justify-center rounded-full bg-destructive/10 text-destructive"
-        >
-          <Trash2 size={20} />
-        </span>
-        <AlertDialogHeader className="text-left">
-          <AlertDialogTitle>Delete this movie?</AlertDialogTitle>
-          <AlertDialogDescription className="leading-6 wrap-anywhere">
-            “{movie?.title}” will be removed from your watchlist. This cannot be
-            undone.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+        <div className="flex items-start gap-4 p-5 sm:p-6">
+          <span
+            aria-hidden="true"
+            className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full border border-destructive/15 bg-destructive/10 text-destructive"
+          >
+            <Trash2 size={18} />
+          </span>
+          <AlertDialogHeader className="min-w-0 flex-1 space-y-1.5 text-left">
+            <AlertDialogTitle className="text-lg leading-6">
+              Remove from watchlist?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="leading-5 wrap-anywhere">
+              <span className="font-medium text-foreground">
+                “{movie?.title}”
+              </span>{" "}
+              will be removed from your watchlist. You can add it again later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+        </div>
         {error && (
-          <p role="alert" className="text-sm text-destructive wrap-anywhere">
+          <p
+            role="alert"
+            className="mx-5 mb-5 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive wrap-anywhere sm:mx-6"
+          >
             {error}
           </p>
         )}
-        <AlertDialogFooter>
+        <AlertDialogFooter className="border-t px-5 py-4 sm:px-6">
           <AlertDialogCancel disabled={pending}>Keep movie</AlertDialogCancel>
           <AlertDialogAction
             disabled={pending}
