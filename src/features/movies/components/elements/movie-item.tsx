@@ -84,7 +84,7 @@ export const MovieItem = ({
               >
                 <Trash2 aria-hidden="true" />
               </Button>
-              {movie.notes && (
+              {movie.notes ? (
                 <AccordionTrigger
                   aria-label={`Notes for ${movie.title}`}
                   title="Show or hide notes"
@@ -92,6 +92,8 @@ export const MovieItem = ({
                 >
                   <span className="sr-only">Notes</span>
                 </AccordionTrigger>
+              ) : (
+                <span aria-hidden="true" className="size-11 shrink-0" />
               )}
             </div>
           </div>
