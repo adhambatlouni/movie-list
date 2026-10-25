@@ -7,7 +7,7 @@
 
 **A full-stack Next.js watchlist built around resilient optimistic updates, server-side validation, accessible interactions, Supabase persistence, and browser-level verification.**
 
-[![CI](https://github.com/adhambatlouni/Movie-List/actions/workflows/ci.yml/badge.svg)](https://github.com/adhambatlouni/Movie-List/actions/workflows/ci.yml)
+[![CI](https://github.com/adhambatlouni/movie-list/actions/workflows/ci.yml/badge.svg)](https://github.com/adhambatlouni/movie-list/actions/workflows/ci.yml)
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Open_on_Vercel-000000?logo=vercel&logoColor=white)](https://adham-movie-watchlist.vercel.app/)
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
@@ -37,7 +37,7 @@ The production application runs on Vercel with persistent data stored in
 Supabase.
 
 - **Application:** [Open Movie Watchlist](https://adham-movie-watchlist.vercel.app/)
-- **Repository:** [View the source on GitHub](https://github.com/adhambatlouni/Movie-List)
+- **Repository:** [View the source on GitHub](https://github.com/adhambatlouni/movie-list)
 
 The demo uses one shared watchlist and intentionally has no user accounts.
 Visitors can change the same disposable data, so do not add private information.
@@ -141,8 +141,8 @@ sequenceDiagram
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/adhambatlouni/Movie-List.git
-cd Movie-List
+git clone https://github.com/adhambatlouni/movie-list.git
+cd movie-list
 npm ci
 ```
 
